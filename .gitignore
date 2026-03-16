@@ -1,0 +1,50 @@
+# Data: never commit raw or processed datasets
+data/raw/
+data/processed/
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+*.npy
+*.h5
+
+# Model checkpoints: too large for git
+checkpoints/
+*.pt
+*.pth
+*.onnx
+
+# Demo video
+demo/*.mp4
+demo/*.mov
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environments
+.env
+.venv/
+venv/
+env/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Weights & Biases
+wandb/
+
+# Pytest
+.pytest_cache/

@@ -1,0 +1,34 @@
+data:
+  raw_dir: data/raw/
+  processed_dir: data/processed/
+  splits_dir: data/splits/
+  window_size: 16          # T - frames per sequence
+  stride: 1                # Sliding window stride
+  image_size: 224          # Resize target for raw frames
+  num_landmarks: 21
+  feature_dim: 42          # 21 landmarks x 2 (x, y)
+
+model:
+  hidden_dim: 128
+  num_layers: 4
+  num_heads: 4
+  dropout: 0.1
+  gesture_loss_weight: 0.5  # lambda in joint loss
+
+training:
+  batch_size: 64
+  learning_rate: 0.001
+  epochs: 50
+  optimizer: adamw
+  scheduler: cosine
+  checkpoint_dir: checkpoints/
+  seed: 42
+
+inference:
+  onnx_model_path: checkpoints/best_model.onnx
+  target_latency_ms: 50
+  device: cpu
+
+logging:
+  wandb_project: airsketch
+  log_every_n_steps: 10

@@ -1,0 +1,33 @@
+# Deep learning
+torch==2.3.0
+torchvision==0.18.0
+
+# Hand tracking
+mediapipe==0.10.14
+
+# Computer vision
+opencv-python==4.10.0.84
+
+# Virtual camera output
+pyvirtualcam==0.11.1
+
+# ONNX inference
+onnxruntime==1.18.0
+onnx==1.16.1
+
+# Data & utilities
+numpy==1.26.4
+scipy==1.13.1
+
+# Experiment tracking
+wandb==0.17.4
+
+# Configuration
+pyyaml==6.0.1
+
+# Notebook
+jupyter==1.0.0
+ipykernel==6.29.5
+
+# Testing
+pytest==8.2.2
