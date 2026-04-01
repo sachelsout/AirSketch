@@ -52,3 +52,5 @@ wandb/
 # SLURM logs: keep logs/ directory but ignore job output files
 logs/
 !logs/.gitkeep
+
+pc/
