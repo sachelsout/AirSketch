@@ -28,23 +28,23 @@ Common issues and solutions for running AirSketch on the Zaratan cluster.
 **Problem:** PyTorch not installed or not found by Python
 
 **Solution:**
-1. Verify in conda environment: `conda activate airsketch && which python`
-2. Check PyTorch is installed: `conda list | grep torch`
+1. Verify venv is active: `source $HOME/envs/airsketch/bin/activate && which python`
+2. Check PyTorch is installed: `pip show torch`
 3. If missing, reinstall: `pip install torch==2.3.0 --index-url https://download.pytorch.org/whl/cu121`
-4. Try restarting conda: `conda deactivate && conda activate airsketch`
+4. Reactivate venv: `deactivate && source $HOME/envs/airsketch/bin/activate`
 
 ### "nvcc: command not found" or CUDA not detected
 **Problem:** CUDA modules not loaded
 
 **Solution:**
-1. Load CUDA modules: `module load cuda/12.1.0`
-2. Verify: `nvcc --version` should show CUDA 12.1.0
-3. Check ~/.bashrc has these lines:
+1. Load CUDA modules: 
    ```bash
-   module load python/3.10.8
-   module load cuda/12.1.0
-   module load cudnn/8.9.0-cuda12.1
-   ```
+   unset PYTHONPATH
+   module load python/3.10.10/gcc/11.3.0/cuda/12.3.0/linux-rhel8-zen2
+   module load cuda/12.3.0/gcc/11.3.0/zen2
+   module load cudnn/8.9.7.29-12/gcc/11.3.0/zen2```
+2. Verify: `nvcc --version` should show CUDA 12.3
+3. Check ~/.bashrc has unset PYTHONPATH and all three module load lines
 4. Reload shell: `source ~/.bashrc && module list`
 
 ### "torch.cuda.is_available() returns False"
@@ -56,13 +56,13 @@ Common issues and solutions for running AirSketch on the Zaratan cluster.
 2. **PyTorch built for different CUDA:** Version mismatch
    - Solution: `pip install --force-reinstall torch==2.3.0 --index-url https://download.pytorch.org/whl/cu121`
 3. **Conda environment not activated properly:**
-   - Solution: `conda deactivate && conda activate airsketch && python -c "import torch; print(torch.cuda.is_available())"`
+   - Solution: Reactivate venv: deactivate && source $HOME/envs/airsketch/bin/activate && python -c "import torch; print(torch.cuda.is_available())"
 
 ### "Error: Could not find cudnn header"
 **Problem:** cuDNN not loaded or not found
 
 **Solution:**
-1. Load cuDNN module: `module load cudnn/8.9.0-cuda12.1`
+1. Load cuDNN module: `module load cudnn/8.9.7.29-12/gcc/11.3.0/zen2`
 2. Verify: `echo $CUDNN_HOME` should show a path
 3. Add to ~/.bashrc if missing
 
@@ -122,15 +122,18 @@ Common issues and solutions for running AirSketch on the Zaratan cluster.
 **Solution:**
 1. Check error log: `cat logs/train_<job_id>.err`
 2. Common causes:
-   - Python not found: `module list` was not run before `conda activate`
-   - Config file missing: `cd /scratch/$USER/airsketch` didn't work or directory is wrong
-   - Conda env doesn't exist: Env name is wrong or wasn't created
+   - Python not found: modules not loaded or venv not activated
+   - Config file missing: cd $HOME/AirSketch didn't work or directory is wrong
+   -  Venv doesn't exist: run python -m venv $HOME/envs/airsketch first
 3. Debug with interactive session first:
    ```bash
-   salloc --partition=gpu --gres=gpu:1 --ntasks=1 --cpus-per-task=8 --mem=32G --time=00:30:00 --account=<account>
-   module load python/3.10.8 cuda/12.1.0 cudnn/8.9.0-cuda12.1
-   conda activate airsketch
-   cd /scratch/$USER/airsketch
+   salloc --partition=gpu --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 --mem=32G --time=00:30:00 --account=msml612-class
+   unset PYTHONPATH
+   module load python/3.10.10/gcc/11.3.0/cuda/12.3.0/linux-rhel8-zen2
+   module load cuda/12.3.0/gcc/11.3.0/zen2
+   module load cudnn/8.9.7.29-12/gcc/11.3.0/zen2
+   source $HOME/envs/airsketch/bin/activate
+   cd $HOME/AirSketch
    python src/train.py --config configs/default.yaml
    ```
 
@@ -162,6 +165,10 @@ Common issues and solutions for running AirSketch on the Zaratan cluster.
 ---
 
 ## Data & Storage Issues
+
+```
+Note: /scratch/$USER may not be provisioned on Zaratan. Contact hpcsupport@umd.edu to request it. Currently using $HOME/AirSketch as the working directory.
+```
 
 ### "data/raw/: No such file or directory"
 **Problem:** Raw data not found at expected path
@@ -245,7 +252,7 @@ scancel -u $USER
 
 1. **Always test with interactive session first** before submitting batch jobs:
    ```bash
-   salloc --partition=gpu --gres=gpu:1 --ntasks=1 --cpus-per-task=8 --mem=32G --time=00:30:00 --account=<account>
+   salloc --partition=gpu --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 --mem=32G --time=00:30:00 --account=msml612-class
    ```
 
 2. **Save resource requests for future reference:** After job completes, run `seff <job_id>` and note:

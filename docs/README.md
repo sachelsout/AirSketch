@@ -89,6 +89,10 @@ See [zaratan_notes.md](zaratan_notes.md#team-notes) to fill in team details.
 
 ### Critical Paths
 
+```
+Note: /scratch/$USER may not be provisioned automatically. Contact hpcsupport@umd.edu to request it.
+```
+
 | Path | Use | Notes |
 |------|-----|-------|
 | `/home/<uid>/` | Code, configs | Backed up, slow I/O (20 GB quota) |
@@ -110,7 +114,8 @@ All jobs use templates in `../scripts/slurm/`:
 
 ## Hardware Specs
 
-- **GPU Nodes:** NVIDIA A100 40GB (4 GPUs per node)
+- **GPU Nodes:** NVIDIA A100 40GB, H100, V100 (4 GPUs per node); A100 MIG slices on gpu-b11-6
+- **Recommended:** A100 nodes (most plentiful, use --gres=gpu:a100:1)
 - **Typical Request:** 1 GPU + 8 CPU cores + 32 GB RAM
 - **Training Job Timeout:** 4–6 hours (adjust as needed)
 - **Partition:** `gpu` (standard for model training)
@@ -120,9 +125,9 @@ All jobs use templates in `../scripts/slurm/`:
 ## Checklist: Ready to Submit Your First Job?
 
 - [ ] SSH access verified (`ssh <uid>@zaratan.umd.edu` works)
-- [ ] Conda environment created and working
-- [ ] `pytorch` GPU support confirmed (`torch.cuda.is_available()` returns `True`)
-- [ ] `environment.yml` and `requirements.lock` committed to repo
+- [ ] Venv created at $HOME/envs/airsketch and working
+- [ ] PyTorch GPU support confirmed from a compute node (torch.cuda.is_available() returns True)
+- [ ] `requirements.lock` committed to repo
 - [ ] SLURM scripts updated with account name and your email
 - [ ] Config file created or verified (`configs/default.yaml`)
 - [ ] Training code tested locally or in interactive session
@@ -135,7 +140,7 @@ All jobs use templates in `../scripts/slurm/`:
 - **Zaratan Official Docs:** https://zaratan.documentation.umd.edu/
 - **SLURM Quick Reference:** https://slurm.schedmd.com/pdfs/summary.pdf
 - **PyTorch CUDA Setup:** https://pytorch.org/get-started/locally/
-- **This Project's GitHub:** [INSERT REPO URL]
+- **This Project's GitHub:** https://github.com/sachelsout/AirSketch
 - **Zaratan Support Email:** hpcsupport@umd.edu
 
 ---
@@ -164,17 +169,17 @@ A: See [ZARATAN_TROUBLESHOOTING.md](ZARATAN_TROUBLESHOOTING.md#out-of-memory-or-
 
 ## Team Coordination
 
-- **Account name:** [TO BE FILLED IN BY PI]
+- **Account name:** msml612-class
 - **Team members set up:** [_] [_] [_] [_]
-- **Environment lockfiles committed:** [DATE]
+- **Environment lockfiles committed:** 04/01/2026
 - **First successful job:** Job ID _______ by _______ on [DATE]
 
 ---
 
 ## Last Updated
 
-- **Date:** March 2026
-- **By:** [TO BE FILLED IN]
+- **Date:** April 2026
+- **By:** Rohan Dawkhar
 - **Status:** Ready for team
 
 ---

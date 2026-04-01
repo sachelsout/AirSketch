@@ -28,33 +28,34 @@ These modules must be loaded every session. Add them to your shell startup:
 
 ```bash
 cat >> ~/.bashrc << 'EOF'
-module load python/3.10.8
-module load cuda/12.1.0
-module load cudnn/8.9.0-cuda12.1
+unset PYTHONPATH
+module load python/3.10.10/gcc/11.3.0/cuda/12.3.0/linux-rhel8-zen2
+module load cuda/12.3.0/gcc/11.3.0/zen2
+module load cudnn/8.9.7.29-12/gcc/11.3.0/zen2
 EOF
 
 source ~/.bashrc
 ```
 
-Verify: `nvcc --version` should show CUDA 12.1.0.
+Verify: `nvcc --version` should show CUDA 12.3
 
-### 3. Create Conda Environment
+### 3. Create venv
 
 ```bash
-conda create -n airsketch python=3.10 -y
-conda activate airsketch
+python -m venv $HOME/envs/airsketch
+source $HOME/envs/airsketch/bin/activate
 
 # Verify environment path
 which python
-# Expected: /home/<uid>/.conda/envs/airsketch/bin/python
+# Expected: ~/envs/airsketch/bin/python
 ```
 
-### 4. Clone Repo to Scratch (Fast I/O)
+### 4. Clone Repo to Home (Will do SCRATCH once we get the permissions)
 
 ```bash
-cd /scratch/$USER
-git clone https://github.com/<your-org>/airsketch.git
-cd airsketch
+cd $HOME
+git clone https://github.com/sachelsout/AirSketch.git
+cd AirSketch
 ```
 
 ### 5. Install PyTorch with CUDA 12.1
@@ -72,18 +73,16 @@ pip install -r requirements.txt
 ### 7. Generate Lockfiles (for team reproducibility)
 
 ```bash
-conda env export > environment.yml
 pip freeze > requirements.lock
 
-git add environment.yml requirements.lock
-git commit -m "chore: add Zaratan environment lockfiles"
+git add requirements.lock
+git commit -m "chore: add Zaratan pip environment lockfile"
 git push
 ```
 
 **First person to do this**: Team members thereafter can skip steps 3–6 and use:
 
 ```bash
-conda env create -f environment.yml -n airsketch
 pip install -r requirements.lock
 ```
 
@@ -92,13 +91,12 @@ pip install -r requirements.lock
 Request a quick interactive session:
 
 ```bash
-salloc --partition=gpu --gres=gpu:1 --ntasks=1 --cpus-per-task=8 \
-       --mem=32G --time=00:10:00 --account=<account>
+salloc --partition=gpu --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 \
+       --mem=32G --time=00:10:00 --account=msml612-class
 
 # Once allocated (you'll see a new prompt on a compute node):
-conda activate airsketch
+source $HOME/envs/airsketch/bin/activate
 python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
-# Should print: True and NVIDIA A100-SXM4-40GB
 
 exit  # Release allocation
 ```
@@ -173,7 +171,7 @@ See [docs/zaratan_notes.md](zaratan_notes.md) for full reference. Quick versions
 
 ```bash
 # Request interactive GPU session (1 hour)
-salloc --partition=gpu --gres=gpu:1 --ntasks=1 --cpus-per-task=8 --mem=32G --time=01:00:00 --account=<account>
+salloc --partition=gpu --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 --mem=32G --time=01:00:00 --account=msml612-class
 
 # Submit training job
 sbatch scripts/slurm/train.sh
@@ -201,9 +199,9 @@ seff 12345
 - Try: `ssh -vvv <uid>@login.zaratan.umd.edu` to see detailed errors
 
 ### CUDA not detected in interactive session
-- Verify modules loaded: `module list`
-- Reload: `module purge && module load python/3.10.8 cuda/12.1.0 cudnn/8.9.0-cuda12.1`
-- Deactivate/reactivate conda: `conda deactivate && conda activate airsketch`
+- Verify modules loaded: module list
+- Reload: module purge && unset PYTHONPATH && module load python/3.10.10/gcc/11.3.0/cuda/12.3.0/linux-rhel8-zen2 cuda/12.3.0/gcc/11.3.0/zen2 cudnn/8.9.7.29-12/gcc/11.3.0/zen2
+- Reactivate venv: deactivate && source $HOME/envs/airsketch/bin/activate
 
 ### Job dies immediately
 - Check error log: `cat logs/train_<job_id>.err`
@@ -215,16 +213,19 @@ seff 12345
 - On Zaratan: `pip install -r requirements.txt`
 - Re-generate lockfiles:
   ```bash
-  conda env export > environment.yml
+  pip install -r requirements.txt
   pip freeze > requirements.lock
-  git add environment.yml requirements.lock
-  git commit -m "chore: update environment lockfiles"
+  git add requirements.lock
+  git commit -m "chore: update pip lockfile"
   git push
   ```
 
 ---
 
 ## Important: Storage & Backups
+```
+Note: /scratch/$USER is not yet provisioned. Currently using $HOME/AirSketch as the working directory. Move to scratch once provisioned for faster I/O.
+```
 
 - Train from: `/scratch/$USER/airsketch/`
 - **Back up checkpoints** to GitHub Releases or Google Drive (scratch is periodically wiped)

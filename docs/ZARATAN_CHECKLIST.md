@@ -17,7 +17,7 @@ Before **anyone** attempts to run jobs:
 - [ ] **GPU partition verified**
   - Run on Zaratan: `sinfo -p gpu`
   - Partition is available: YES / NO
-  - GPU type: NVIDIA A100 40GB (expected)
+  - GPU type: NVIDIA A100 40GB, H100, or V100 (depends on node allocated)
 
 ---
 
@@ -30,47 +30,47 @@ Each team member completes this once. First person should generate `environment.
 - [ ] Know the account name from PI
 
 ### SSH & Module Setup
-- [ ] SSH into Zaratan: `ssh <uid>@zaratan.umd.edu`
+- [ ] SSH into Zaratan: `ssh <uid>@login.zaratan.umd.edu`
+- [ ] unset PYTHONPATH added to ~/.bashrc before module loads
 - [ ] Modules added to `~/.bashrc`:
   ```bash
-  module load python/3.10.8
-  module load cuda/12.1.0
-  module load cudnn/8.9.0-cuda12.1
+    module load python/3.10.10/gcc/11.3.0/cuda/12.3.0/linux-rhel8-zen2
+    module load cuda/12.3.0/gcc/11.3.0/zen2
+    module load cudnn/8.9.7.29-12/gcc/11.3.0/zen2
   ```
-- [ ] Modules loadable: `source ~/.bashrc && module list` shows all 3 modules
-- [ ] CUDA verified: `nvcc --version` shows 12.1.0
+- [ ] CUDA verified: `nvcc --version` shows 12.3
 
-### Conda Environment
-- [ ] Conda environment created: `conda create -n airsketch python=3.10 -y`
-- [ ] Environment activatable: `conda activate airsketch`
-- [ ] Python path correct: `which python` shows `/home/<uid>/.conda/envs/airsketch/bin/python`
+### Venv Setup
+- [ ] Venv created: python -m venv $HOME/envs/airsketch
+- [ ] Venv activatable: source $HOME/envs/airsketch/bin/activate
+- [ ] Python path correct: which python shows ~/envs/airsketch/bin/python
+- [ ] Python version correct: python --version shows 3.10.10
 
 ### Repository & Dependencies
-- [ ] Repo cloned to `/scratch/$USER/airsketch/`
+- [ ] Repo cloned to `$HOME/AirSketch/` (Note: /scratch/$USER may not be provisioned. Contact hpcsupport@umd.edu to request it.)
 - [ ] Dependencies installed: `pip install -r requirements.txt` ✓
 - [ ] PyTorch installed with CUDA: `pip install torch==2.3.0 torchvision==0.18.0 --index-url https://download.pytorch.org/whl/cu121` ✓
 - [ ] All imports working: `python -c "import torch; import cv2; import mediapipe"`
 
 ### First-Time: Generate Lockfiles
-(Only first person does this; generates `environment.yml` and `requirements.lock`)
+(Only first person does this; generates `requirements.lock`)
 
 - [ ] Lockfiles generated:
   ```bash
-  conda env export > environment.yml
   pip freeze > requirements.lock
   ```
 - [ ] Lockfiles committed to repo:
   ```bash
-  git add environment.yml requirements.lock
-  git commit -m "chore: add Zaratan environment lockfiles"
+  git add requirements.lock
+  git commit -m "chore: add Zaratan pip environment lockfiles"
   git push
   ```
 
 ### Subsequent Team Members: Use Lockfiles
 - [ ] Lockfiles copied from repo (via `git pull`)
-- [ ] Conda environment created from lockfile:
+- [ ] Venv created:
   ```bash
-  conda env create -f environment.yml -n airsketch
+  python -m venv $HOME/envs/airsketch
   ```
 - [ ] Dependencies installed from lockfile:
   ```bash
@@ -80,15 +80,15 @@ Each team member completes this once. First person should generate `environment.
 ### GPU Verification (Optional but Recommended)
 - [ ] Interactive GPU session requested:
   ```bash
-  salloc --partition=gpu --gres=gpu:1 --ntasks=1 --cpus-per-task=8 \
-         --mem=32G --time=00:10:00 --account=<account>
+  salloc --partition=gpu --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 \
+           --mem=32G --time=00:10:00 --account=msml612-class
   ```
 - [ ] GPU detected from compute node:
   ```bash
-  conda activate airsketch
+  source $HOME/envs/airsketch/bin/activate
   python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
   ```
-  Should print: `True` and `NVIDIA A100-SXM4-40GB`
+  Should print: `True` and `NVIDIA A100-SXM4-40GB (or H100/V100)`
 - [ ] Interactive session exited: `exit`
 
 ---
@@ -116,16 +116,16 @@ Before submitting any jobs:
 Before running real training:
 
 ### Test with Interactive Session
-- [ ] SSH into Zaratan: `ssh <uid>@zaratan.umd.edu`
-- [ ] Navigate to repo: `cd /scratch/$USER/airsketch`
+- [ ] SSH into Zaratan: `ssh <uid>@login.zaratan.umd.edu`
+- [ ] Navigate to repo: `cd $HOME/AirSketch`
 - [ ] Request interactive GPU:
   ```bash
-  salloc --partition=gpu --gres=gpu:1 --ntasks=1 --cpus-per-task=8 \
-         --mem=32G --time=00:30:00 --account=<account>
+  salloc --partition=gpu --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 \
+           --mem=32G --time=00:30:00 --account=msml612-class
   ```
 - [ ] Test training code:
   ```bash
-  conda activate airsketch
+  source $HOME/envs/airsketch/bin/activate
   python src/train.py --config configs/default.yaml --debug
   ```
 - [ ] Code runs without errors (check for 1–2 iterations, then Ctrl+C)
@@ -136,7 +136,7 @@ Before running real training:
 - [ ] Config file verified: `configs/default.yaml` exists and looks correct
 - [ ] Submit job:
   ```bash
-  cd /scratch/$USER/airsketch
+  cd $HOME/AirSketch
   sbatch scripts/slurm/train.sh
   ```
 - [ ] Job submitted successfully (shows `Submitted batch job <job_id>`)
@@ -179,9 +179,9 @@ After all members are set up:
 ✅ Any team member can run:
 
 ```bash
-ssh <uid>@zaratan.umd.edu
-cd /scratch/$USER/airsketch
-conda activate airsketch
+ssh <uid>@login.zaratan.umd.edu
+cd $HOME/AirSketch
+source $HOME/envs/airsketch/bin/activate
 sbatch scripts/slurm/train.sh
 squeue -u $USER   # Job appears with state R (running) or PD (pending)
 ```

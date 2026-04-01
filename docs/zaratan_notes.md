@@ -84,6 +84,7 @@ nvcc --version      # CUDA Toolkit version
 These modules should auto-load every time you log in:
 
 ```bash
+unset PYTHONPATH
 echo "module load python/3.10.10/gcc/11.3.0/cuda/12.3.0/linux-rhel8-zen2" >> ~/.bashrc
 echo "module load cuda/12.3.0/gcc/11.3.0/zen2" >> ~/.bashrc
 echo "module load cudnn/8.9.7.29-12/gcc/11.3.0/zen2" >> ~/.bashrc
@@ -136,9 +137,9 @@ exit
 ### Step 5: Install Project Dependencies
 
 ```bash
-cd /scratch/$USER
-git clone https://github.com/<your-org>/airsketch.git
-cd airsketch
+cd $HOME
+git clone https://github.com/sachelsout/AirSketch.git
+cd AirSketch
 
 pip install -r requirements.txt
 
@@ -170,11 +171,10 @@ Never run training on the login node—it will be killed. Use an interactive ses
 
 ```bash
 # Request 1 GPU, 8 CPUs, 32GB RAM for 1 hour
-salloc --partition=gpu --gres=gpu:1 --ntasks=1 --cpus-per-task=8 \
-       --mem=32G --time=01:00:00 --account=<account>
+salloc --partition=gpu --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 \
+       --mem=32G --time=01:00:00 --account=msml612-class
 
-# You'll be allocated to a compute node. Activate environment and test:
-conda activate airsketch
+source $HOME/envs/airsketch/bin/activate
 python -c "import torch; print(torch.cuda.is_available())"
 
 # Exit when done (releases allocation immediately)
@@ -184,7 +184,7 @@ exit
 ### Shell Alias (add to ~/.bashrc)
 
 ```bash
-alias gpu-shell='salloc --partition=gpu --gres=gpu:1 --ntasks=1 --cpus-per-task=8 --mem=32G --time=01:00:00 --account=<account>'
+alias gpu-shell='salloc --partition=gpu --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 --mem=32G --time=01:00:00 --account=msml612-class'
 
 # Usage: just type `gpu-shell` to get an interactive session
 ```
@@ -238,6 +238,12 @@ scancel -u $USER
 
 ## Storage Guidelines
 
+```
+Note: /scratch/$USER is not yet provisioned. Currently using $HOME/AirSketch 
+as the repo and working directory. Move to scratch once provisioned for 
+faster I/O during training.
+```
+
 Zaratan has three storage tiers:
 
 | Location | Path | Use For | Quota | Notes |
@@ -257,8 +263,8 @@ Zaratan has three storage tiers:
 
 ### CUDA not detected on compute node
 - Confirm you loaded all three modules: `module list`
-- Restart your conda environment: `conda deactivate && conda activate airsketch`
-- If still failing, request interactive session with `salloc` and test directly
+- Reactivate your venv: deactivate && source $HOME/envs/airsketch/bin/activate
+- If still failing, request interactive session with salloc and test directly
 
 ### Job killed immediately (exceeds time, memory, or GPU)
 - Check `seff <job_id>` to see actual usage
@@ -280,7 +286,7 @@ Zaratan has three storage tiers:
 **Team member setup (one-time):**
 - [ ] SSH access confirmed
 - [ ] Modules added to `~/.bashrc`
-- [ ] Conda environment created and `torch.cuda.is_available()` returns `True`
+- [ ] Venv created at $HOME/envs/airsketch and torch.cuda.is_available() returns True from a compute node
 - [ ] `requirements.txt` installed successfully
 - [ ] GPU shell alias added to `.bashrc` (optional but recommended)
 
