@@ -1,0 +1,10 @@
+# Generate this file on Zaratan after setting up the conda environment
+# 
+# Command to create:
+#   pip freeze > requirements.lock
+#
+# This file locks all exact pip package versions for reproducibility.
+# Do NOT edit manually. Regenerate if dependencies change.
+#
+# To install from this file:
+#   pip install -r requirements.lock

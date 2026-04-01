@@ -38,12 +38,21 @@ venv\Scripts\activate          # Windows
 pip install -r requirements.txt
 ```
 
-**4. (HPC only) Install on Zaratan**
+**4. (GPU training on Zaratan HPC) Full setup guide**
+
+For distributed GPU training on the Zaratan cluster, see comprehensive documentation:
+- **[Getting Started Guide](docs/GETTING_STARTED_ZARATAN.md)** — Step-by-step setup for first-time users
+- **[Zaratan Reference](docs/zaratan_notes.md)** — Cluster architecture, modules, commands, troubleshooting
+- **[SLURM Scripts](scripts/README.md)** — How to submit training jobs
+
+Quick start (after one-time setup):
 ```bash
-module load python/3.10
-conda create -n airsketch python=3.10
+ssh <uid>@zaratan.umd.edu
+cd /scratch/$USER/airsketch
 conda activate airsketch
-pip install -r requirements.txt
+sbatch scripts/slurm/train.sh        # Single job
+sbatch scripts/slurm/sweep.sh        # Hyperparameter sweep
+squeue -u $USER                       # Monitor jobs
 ```
 
 ## Project structure

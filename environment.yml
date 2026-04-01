@@ -1,0 +1,10 @@
+# Generate this file on Zaratan after setting up the conda environment
+# 
+# Command to create:
+#   conda env export > environment.yml
+#
+# This file locks all exact versions for reproducibility across team members.
+# Do NOT edit manually. Regenerate if dependencies change.
+#
+# To restore environment from this file:
+#   conda env create -f environment.yml -n airsketch
