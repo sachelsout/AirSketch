@@ -50,10 +50,10 @@ which python
 # Expected: ~/envs/airsketch/bin/python
 ```
 
-### 4. Clone Repo to Home (Will do SCRATCH once we get the permissions)
+### 4. Clone Repo to Scratch
 
 ```bash
-cd $HOME
+cd ~/scratch
 git clone https://github.com/sachelsout/AirSketch.git
 cd AirSketch
 ```
@@ -128,7 +128,7 @@ cat configs/default.yaml
 ### 3. Submit Job
 
 ```bash
-cd /scratch/$USER/airsketch
+cd ~/scratch/AirSketch
 sbatch scripts/slurm/train.sh
 ```
 
@@ -224,10 +224,11 @@ seff 12345
 
 ## Important: Storage & Backups
 ```
-Note: /scratch/$USER is not yet provisioned. Currently using $HOME/AirSketch as the working directory. Move to scratch once provisioned for faster I/O.
+Scratch is provisioned at /scratch/zt1/project/msml612/user/<uid>/.
+Use ~/scratch/ (symlink) to access it, then work from ~/scratch/AirSketch.
 ```
 
-- Train from: `/scratch/$USER/airsketch/`
+- Train from: `~/scratch/AirSketch/` (canonical: `/scratch/zt1/project/msml612/user/<uid>/AirSketch/`)
 - **Back up checkpoints** to GitHub Releases or Google Drive (scratch is periodically wiped)
 - Logs: Feel free to delete after reviewing (they're not backed up)
 

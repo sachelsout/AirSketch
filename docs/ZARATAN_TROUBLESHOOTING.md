@@ -123,7 +123,7 @@ Common issues and solutions for running AirSketch on the Zaratan cluster.
 1. Check error log: `cat logs/train_<job_id>.err`
 2. Common causes:
    - Python not found: modules not loaded or venv not activated
-   - Config file missing: cd $HOME/AirSketch didn't work or directory is wrong
+   - Config file missing: `cd ~/scratch/AirSketch` didn't work or directory is wrong
    -  Venv doesn't exist: run python -m venv $HOME/envs/airsketch first
 3. Debug with interactive session first:
    ```bash
@@ -133,7 +133,7 @@ Common issues and solutions for running AirSketch on the Zaratan cluster.
    module load cuda/12.3.0/gcc/11.3.0/zen2
    module load cudnn/8.9.7.29-12/gcc/11.3.0/zen2
    source $HOME/envs/airsketch/bin/activate
-   cd $HOME/AirSketch
+   cd ~/scratch/AirSketch
    python src/train.py --config configs/default.yaml
    ```
 
@@ -167,22 +167,22 @@ Common issues and solutions for running AirSketch on the Zaratan cluster.
 ## Data & Storage Issues
 
 ```
-Note: /scratch/$USER may not be provisioned on Zaratan. Contact hpcsupport@umd.edu to request it. Currently using $HOME/AirSketch as the working directory.
+Scratch is available at /scratch/zt1/project/msml612/user/<uid>/ and exposed in home as ~/scratch/.
 ```
 
 ### "data/raw/: No such file or directory"
 **Problem:** Raw data not found at expected path
 
 **Solution:**
-1. Verify data location: `ls /scratch/$USER/airsketch/data/raw/`
+1. Verify data location: `ls ~/scratch/AirSketch/data/raw/`
 2. If empty, data needs to be uploaded to Zaratan:
    ```bash
    # From your laptop/local machine:
-   scp -r data/raw/* <uid>@zaratan.umd.edu:/scratch/$USER/airsketch/data/raw/
+   scp -r data/raw/* <uid>@zaratan.umd.edu:/scratch/zt1/project/msml612/user/<uid>/AirSketch/data/raw/
    ```
 3. Or download on Zaratan:
    ```bash
-   cd /scratch/$USER/airsketch/data/raw/
+   cd ~/scratch/AirSketch/data/raw/
    wget <data-url>
    ```
 
@@ -191,7 +191,7 @@ Note: /scratch/$USER may not be provisioned on Zaratan. Contact hpcsupport@umd.e
 
 **Solution:**
 1. Check usage: `quota`
-2. Find large files: `du -sh /scratch/$USER/airsketch/* | sort -h`
+2. Find large files: `du -sh ~/scratch/AirSketch/* | sort -h`
 3. Clean up:
    - Delete old checkpoints: `rm checkpoints/old_*.pt` (keep recent ones!)
    - Delete old logs: `rm logs/*.out logs/*.err`

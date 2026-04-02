@@ -137,7 +137,7 @@ exit
 ### Step 5: Install Project Dependencies
 
 ```bash
-cd $HOME
+cd ~/scratch
 git clone https://github.com/sachelsout/AirSketch.git
 cd AirSketch
 
@@ -239,9 +239,11 @@ scancel -u $USER
 ## Storage Guidelines
 
 ```
-Note: /scratch/$USER is not yet provisioned. Currently using $HOME/AirSketch 
-as the repo and working directory. Move to scratch once provisioned for 
-faster I/O during training.
+Scratch is provisioned at /scratch/zt1/project/msml612/user/<uid>/.
+Home includes symlinks:
+scratch -> scratch.msml612/
+scratch.msml612 -> /scratch/zt1/project/msml612/user/<uid>/
+Use ~/scratch/ as your working scratch location.
 ```
 
 Zaratan has three storage tiers:
@@ -249,11 +251,11 @@ Zaratan has three storage tiers:
 | Location | Path | Use For | Quota | Notes |
 |----------|------|---------|-------|-------|
 | **Home** | `/home/<uid>/` | Code, configs, small files | 20 GB | Backed up. **Slow**—don't train from here |
-| **Scratch** | `/scratch/<uid>/` | Datasets, checkpoints, outputs | 1 TB | Not backed up. **Fast**—train from here |
+| **Scratch** | `/scratch/zt1/project/msml612/user/<uid>/` | Datasets, checkpoints, outputs | 1 TB | Not backed up. **Fast**—train from here |
 | **Group** | `/scratch/zt1/<group>/` | Shared datasets across team | Shared | Ask your PI for group path |
 
 **Key Rules:**
-- Clone the repo and all data go in `/scratch/$USER/airsketch/`
+- Clone the repo and all data go in `~/scratch/AirSketch/`
 - **Back up important checkpoints** to GitHub Releases or Google Drive (scratch is periodically wiped)
 - Never store raw datasets in home directory
 
@@ -276,7 +278,7 @@ Zaratan has three storage tiers:
 
 ### Out of quota
 - Check usage: `quota`
-- Clean up old checkpoints from `/scratch/$USER/`
+- Clean up old checkpoints from `~/scratch/`
 - Old job logs can be deleted: `rm logs/*`
 
 ---
@@ -294,7 +296,7 @@ Zaratan has three storage tiers:
 - [ ] Code changes pushed to `main` branch
 - [ ] Config file created/updated in `configs/`
 - [ ] Review SLURM script for correct `--account` and resource requests
-- [ ] Confirm `/scratch/$USER/airsketch/` clone is up-to-date
+- [ ] Confirm `~/scratch/AirSketch/` clone is up-to-date
 
 **After job completes:**
 - [ ] Check `seff <job_id>` to optimize resource requests

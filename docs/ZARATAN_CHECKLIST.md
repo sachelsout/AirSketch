@@ -47,7 +47,7 @@ Each team member completes this once. First person should generate `environment.
 - [ ] Python version correct: python --version shows 3.10.10
 
 ### Repository & Dependencies
-- [ ] Repo cloned to `$HOME/AirSketch/` (Note: /scratch/$USER may not be provisioned. Contact hpcsupport@umd.edu to request it.)
+- [ ] Repo cloned to `~/scratch/AirSketch/` (canonical: `/scratch/zt1/project/msml612/user/<uid>/AirSketch/`)
 - [ ] Dependencies installed: `pip install -r requirements.txt` ✓
 - [ ] PyTorch installed with CUDA: `pip install torch==2.3.0 torchvision==0.18.0 --index-url https://download.pytorch.org/whl/cu121` ✓
 - [ ] All imports working: `python -c "import torch; import cv2; import mediapipe"`
@@ -117,7 +117,7 @@ Before running real training:
 
 ### Test with Interactive Session
 - [ ] SSH into Zaratan: `ssh <uid>@login.zaratan.umd.edu`
-- [ ] Navigate to repo: `cd $HOME/AirSketch`
+- [ ] Navigate to repo: `cd ~/scratch/AirSketch`
 - [ ] Request interactive GPU:
   ```bash
   salloc --partition=gpu --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 \
@@ -136,7 +136,7 @@ Before running real training:
 - [ ] Config file verified: `configs/default.yaml` exists and looks correct
 - [ ] Submit job:
   ```bash
-  cd $HOME/AirSketch
+  cd ~/scratch/AirSketch
   sbatch scripts/slurm/train.sh
   ```
 - [ ] Job submitted successfully (shows `Submitted batch job <job_id>`)
@@ -180,7 +180,7 @@ After all members are set up:
 
 ```bash
 ssh <uid>@login.zaratan.umd.edu
-cd $HOME/AirSketch
+cd ~/scratch/AirSketch
 source $HOME/envs/airsketch/bin/activate
 sbatch scripts/slurm/train.sh
 squeue -u $USER   # Job appears with state R (running) or PD (pending)

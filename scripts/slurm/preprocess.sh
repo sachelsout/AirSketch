@@ -15,7 +15,7 @@ module load python/3.10.10/gcc/11.3.0/cuda/12.3.0/linux-rhel8-zen2
 source $HOME/envs/airsketch/bin/activate
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-cd $HOME/AirSketch
+cd $HOME/scratch/AirSketch
 
 echo "Start: $(date)"
 python src/landmark_extract.py --input data/raw/freihand/ --output data/processed/freihand/

@@ -20,7 +20,7 @@ module load cudnn/8.9.7.29-12/gcc/11.3.0/zen2
 source $HOME/envs/airsketch/bin/activate
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-REPO_DIR=$HOME/AirSketch
+REPO_DIR=$HOME/scratch/AirSketch
 CONFIG=${1:-configs/default.yaml}
 cd $REPO_DIR
 

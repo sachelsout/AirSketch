@@ -21,7 +21,7 @@ module load cudnn/8.9.7.29-12/gcc/11.3.0/zen2
 source $HOME/envs/airsketch/bin/activate
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-cd $HOME/AirSketch
+cd $HOME/scratch/AirSketch
 
 # ── Hyperparameter grid ───────────────────────────────────────────────────────
 HIDDEN_DIMS=(64 128 256)

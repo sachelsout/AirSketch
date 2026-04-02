@@ -48,7 +48,7 @@ For distributed GPU training on the Zaratan cluster, see comprehensive documenta
 Quick start (after one-time setup):
 ```bash
 ssh <uid>@login.zaratan.umd.edu
-cd $HOME/AirSketch
+cd ~/scratch/AirSketch
 source $HOME/envs/airsketch/bin/activate
 sbatch scripts/slurm/train.sh        # Single job
 sbatch scripts/slurm/sweep.sh        # Hyperparameter sweep

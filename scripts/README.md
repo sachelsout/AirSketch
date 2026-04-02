@@ -98,7 +98,7 @@ This extracts landmarks from all raw video files and saves processed outputs.
    ```bash
    salloc --partition=gpu --gres=gpu:1 --ntasks=1 --cpus-per-task=8 \
           --mem=32G --time=00:30:00 --account=<account>
-   cd /scratch/$USER/airsketch
+   cd ~/scratch/AirSketch
    python src/train.py --config configs/default.yaml --debug
    ```
 
@@ -123,7 +123,7 @@ To create a new training job script:
 
 module load python/3.10.8 cuda/12.1.0 cudnn/8.9.0-cuda12.1
 conda activate airsketch
-cd /scratch/$USER/airsketch
+cd ~/scratch/AirSketch
 
 python src/train.py --config configs/myconfig.yaml
 ```

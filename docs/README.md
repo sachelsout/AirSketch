@@ -90,16 +90,17 @@ See [zaratan_notes.md](zaratan_notes.md#team-notes) to fill in team details.
 ### Critical Paths
 
 ```
-Note: /scratch/$USER may not be provisioned automatically. Contact hpcsupport@umd.edu to request it.
+Your scratch is provisioned at /scratch/zt1/project/msml612/user/<uid>/.
+Use ~/scratch/ via the home symlink (scratch -> scratch.msml612/).
 ```
 
 | Path | Use | Notes |
 |------|-----|-------|
 | `/home/<uid>/` | Code, configs | Backed up, slow I/O (20 GB quota) |
-| `/scratch/$USER/airsketch/` | Clone repo here | Not backed up, fast I/O, (1 TB quota) |
+| `/scratch/zt1/project/msml612/user/<uid>/AirSketch/` | Clone repo here | Not backed up, fast I/O, (1 TB quota) |
 | `/scratch/zt1/<group>/` | Shared data | Ask PI for access |
 
-**Rule: Always train from `/scratch/$USER/airsketch/`, not from home dir**
+**Rule: Always train from `~/scratch/AirSketch/`, not from home dir**
 
 ### SLURM Scripts
 
