@@ -10,7 +10,7 @@
 #SBATCH --output=logs/train_%j.out
 #SBATCH --error=logs/train_%j.err
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=<your-email>@umd.edu
+#SBATCH --mail-user=rdawkhar@umd.edu
 
 # ── Environment ──────────────────────────────────────────────────────────────
 unset PYTHONPATH
@@ -18,6 +18,7 @@ module load python/3.10.10/gcc/11.3.0/cuda/12.3.0/linux-rhel8-zen2
 module load cuda/12.3.0/gcc/11.3.0/zen2
 module load cudnn/8.9.7.29-12/gcc/11.3.0/zen2
 source $HOME/envs/airsketch/bin/activate
+export PYTHONPATH=$HOME/envs/airsketch/lib/python3.10/site-packages:$PYTHONPATH
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 REPO_DIR=$HOME/scratch/AirSketch
@@ -32,6 +33,18 @@ echo "Config:     $CONFIG"
 echo "Start time: $(date)"
 echo "GPU info:"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+
+# ── Sanity check ──────────────────────────────────────────────────────────────
+echo "Running import check..."
+python -c "
+import torch
+print('CUDA available:', torch.cuda.is_available())
+print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'None')
+import mediapipe
+import cv2
+import onnxruntime
+print('All imports OK')
+" || { echo "Import check failed — aborting job"; exit 1; }
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 python src/train.py --config $CONFIG
