@@ -12,6 +12,12 @@ your webcam. A Spatial-Temporal Transformer tracks your index fingertip and
 overlays your strokes directly onto your video feed in real time - no stylus,
 tablet, or depth sensor required.
 
+## Experiment tracking
+
+All training runs, hyperparameter sweeps, and evaluation metrics are logged to Weights & Biases.
+
+**[View the W&B project dashboard →](https://wandb.ai/airsketch/airsketch)**
+
 ## Requirements
 
 - Python 3.10+

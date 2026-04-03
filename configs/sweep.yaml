@@ -1,0 +1,39 @@
+# configs/sweep.yaml
+# W&B hyperparameter sweep configuration for AirSketch.
+# Issue #11 runs this sweep. Issue #3 commits the file.
+#
+# Launch with:
+#   wandb sweep configs/sweep.yaml                         → prints a sweep ID
+#   wandb agent airsketch/AirSketch/<sweep-id>         → starts a worker
+
+program: src/train.py
+method: grid
+
+metric:
+  name: val/mpjpe
+  goal: minimize
+
+early_terminate:
+  type: hyperband
+  min_iter: 5
+  eta: 2
+
+parameters:
+  model.hidden_dim:
+    values: [64, 128, 256]
+
+  model.num_layers:
+    values: [2, 4, 6]
+
+  training.learning_rate:
+    values: [0.001, 0.0005, 0.0001]
+
+  # Fixed for the sweep — not being searched
+  training.batch_size:
+    value: 64
+
+  training.epochs:
+    value: 50
+
+  model.dropout:
+    value: 0.1
