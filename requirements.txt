@@ -7,13 +7,14 @@ mediapipe==0.10.14
 
 # Computer vision
 opencv-python==4.10.0.84
+opencv-contrib-python==4.11.0.86
 
 # Virtual camera output
 pyvirtualcam==0.11.1
 
 # ONNX inference
-onnxruntime==1.18.0
 onnx==1.16.1
+onnxruntime==1.18.0
 
 # Data & utilities
 numpy==1.26.4
@@ -24,6 +25,7 @@ wandb==0.22.3
 
 # Configuration
 pyyaml==6.0.1
+protobuf==4.25.9
 
 # Notebook
 jupyter==1.0.0
