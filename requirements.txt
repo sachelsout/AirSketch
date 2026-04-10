@@ -19,6 +19,8 @@ onnxruntime==1.18.0
 # Data & utilities
 numpy==1.26.4
 scipy==1.13.1
+Pillow==10.3.0
+tqdm==4.66.4
 
 # Experiment tracking
 wandb==0.22.3
