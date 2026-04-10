@@ -12,7 +12,7 @@ Steps:
 
 Usage:
     python scripts/freihand_download.py \
-        --data-dir data/raw/freihand/training \
+        --data-dir data/raw/freihand \
         --output-dir data/processed/freihand
 """
 
@@ -76,7 +76,7 @@ def verify_images(rgb_dir: Path, num_images: int) -> tuple[int, list[int]]:
     print(f"Verifying {num_images:,} images in {rgb_dir} ...")
 
     for i in tqdm(range(num_images), desc="Checking images", unit="img"):
-        img_path = rgb_dir / f"{i:010d}.jpg"
+        img_path = rgb_dir / f"{i:08d}.jpg"  # FreiHAND uses 8-digit filenames
         if not img_path.exists():
             missing.append(i)
             continue
@@ -138,7 +138,8 @@ def main(data_dir: str, output_dir: str) -> None:
     output_dir_path = Path(output_dir)
     output_dir_path.mkdir(parents=True, exist_ok=True)
 
-    rgb_dir = data_dir_path / "rgb"
+    # JSONs live at the freihand root; images are under training/rgb/
+    rgb_dir = data_dir_path / "training" / "rgb"
     K_path = data_dir_path / "training_K.json"
     xyz_path = data_dir_path / "training_xyz.json"
 
@@ -159,21 +160,25 @@ def main(data_dir: str, output_dir: str) -> None:
     with xyz_path.open("r", encoding="utf-8") as f:
         xyz_list = json.load(f)
 
+    # JSONs have one entry per unique scene (32,560), not per image (130,240).
+    # The 4 background augmentations of each scene share the same K and xyz.
     assert (
-        len(K_list) == NUM_IMAGES
-    ), f"Expected {NUM_IMAGES} K matrices, got {len(K_list)}"
+        len(K_list) == NUM_UNIQUE_SCENES
+    ), f"Expected {NUM_UNIQUE_SCENES} K matrices, got {len(K_list)}"
     assert (
-        len(xyz_list) == NUM_IMAGES
-    ), f"Expected {NUM_IMAGES} xyz arrays, got {len(xyz_list)}"
-    print(f"[OK] Annotations loaded: {len(K_list):,} entries")
+        len(xyz_list) == NUM_UNIQUE_SCENES
+    ), f"Expected {NUM_UNIQUE_SCENES} xyz arrays, got {len(xyz_list)}"
+    print(f"[OK] Annotations loaded: {len(K_list):,} entries (one per unique scene)")
 
     print("\n-- Step 3: Projecting 3D to 2D and validating --")
     all_landmarks = np.zeros((NUM_IMAGES, NUM_LANDMARKS, 2), dtype=np.float32)
     all_errors: list[str] = []
 
     for i in tqdm(range(NUM_IMAGES), desc="Projecting", unit="img"):
-        K = np.array(K_list[i], dtype=np.float64)
-        xyz = np.array(xyz_list[i], dtype=np.float64)
+        # All 4 augmentations of a scene share the same annotation.
+        scene_id = i % NUM_UNIQUE_SCENES
+        K = np.array(K_list[scene_id], dtype=np.float64)
+        xyz = np.array(xyz_list[scene_id], dtype=np.float64)
 
         uv = project_3d_to_2d(xyz, K)
         all_landmarks[i] = uv
@@ -235,8 +240,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Validate and split FreiHAND dataset")
     parser.add_argument(
         "--data-dir",
-        default="data/raw/freihand/training",
-        help="Path to FreiHAND training directory",
+        default="data/raw/freihand",
+        help="Path to FreiHAND root directory (contains training_K.json)",
     )
     parser.add_argument(
         "--output-dir",
