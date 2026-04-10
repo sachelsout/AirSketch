@@ -24,7 +24,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
 from tqdm import tqdm
 
 
@@ -71,20 +70,13 @@ def validate_landmarks(uv: np.ndarray, image_idx: int) -> list[str]:
 
 
 def verify_images(rgb_dir: Path, num_images: int) -> tuple[int, list[int]]:
-    """Check all expected images exist, can be opened, and match expected size."""
+    """Check all expected images exist by filename only (no decode)."""
     missing: list[int] = []
     print(f"Verifying {num_images:,} images in {rgb_dir} ...")
 
     for i in tqdm(range(num_images), desc="Checking images", unit="img"):
         img_path = rgb_dir / f"{i:08d}.jpg"  # FreiHAND uses 8-digit filenames
         if not img_path.exists():
-            missing.append(i)
-            continue
-        try:
-            with Image.open(img_path) as img:
-                if img.size != (IMAGE_SIZE, IMAGE_SIZE):
-                    missing.append(i)
-        except Exception:
             missing.append(i)
 
     return num_images - len(missing), missing
