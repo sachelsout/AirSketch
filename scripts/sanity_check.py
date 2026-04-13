@@ -26,7 +26,7 @@ print(f"Class weights: {train_ds.get_class_weights()}")
 
 # Gesture distribution plot
 
-os.makedirs("report/figures", exist_ok=True)
+os.makedirs("notebooks/report/figures", exist_ok=True)
 dist = train_ds.gesture_distribution()
 fig, ax = plt.subplots(figsize=(5, 3))
 ax.bar(
@@ -40,8 +40,10 @@ ax.set_title(
 )
 ax.set_ylabel("Window count")
 plt.tight_layout()
-plt.savefig("report/figures/gesture_distribution.png", dpi=150, bbox_inches="tight")
-print("Saved: report/figures/gesture_distribution.png")
+plt.savefig(
+    "notebooks/report/figures/gesture_distribution.png", dpi=150, bbox_inches="tight"
+)
+print("Saved: notebooks/report/figures/gesture_distribution.png")
 
 HAND_CONNECTIONS = [
     (0, 1),
@@ -98,8 +100,10 @@ for row, sample_idx in enumerate([0, 10, 50, 200]):
         if row == 0:
             ax.set_title(f"frame {fi}", fontsize=8)
 plt.tight_layout()
-plt.savefig("report/figures/dataset_windows.png", dpi=150, bbox_inches="tight")
-print("Saved: report/figures/dataset_windows.png")
+plt.savefig(
+    "notebooks/report/figures/dataset_windows.png", dpi=150, bbox_inches="tight"
+)
+print("Saved: notebooks/report/figures/dataset_windows.png")
 
 # Augmentation flip figure
 train_aug = AirSketchDataset(
@@ -124,7 +128,9 @@ for ax, uv, title in [(ax1, orig, "Original"), (ax2, flip, "Flipped (x → 1-x)"
     ax.set_title(title, fontsize=10)
     ax.axis("off")
 plt.tight_layout()
-plt.savefig("report/figures/augmentation_flip.png", dpi=150, bbox_inches="tight")
+plt.savefig(
+    "notebooks/report/figures/augmentation_flip.png", dpi=150, bbox_inches="tight"
+)
 np.testing.assert_allclose(flip[:, 0], 1.0 - orig[:, 0], atol=1e-6)
-print("Saved: report/figures/augmentation_flip.png")
+print("Saved: notebooks/report/figures/augmentation_flip.png")
 print("✓ Flip verified: x_flipped == 1 - x_original")
