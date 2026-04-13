@@ -20,7 +20,9 @@ See --help for all options.
 
 import argparse
 import json
+import os
 import time
+from multiprocessing import Pool
 from pathlib import Path
 
 import cv2
@@ -52,24 +54,6 @@ def extract_landmarks_from_result(
     frame_h: int,
     min_confidence: float,
 ) -> tuple[np.ndarray, str, float]:
-    """
-    Parse a MediaPipe Hands result into a (21, 2) normalized landmark array.
-
-    When multiple hands are detected, selects the one with the highest
-    handedness score (proxy for detection confidence).
-
-    Args:
-        result:         mediapipe.solutions.hands.Hands.process() output.
-        frame_w:        Frame width in pixels (used for bounds check only).
-        frame_h:        Frame height in pixels.
-        min_confidence: Minimum handedness score to accept a detection.
-
-    Returns:
-        (landmarks, reason, confidence)
-        landmarks:  (21, 2) float32 array normalized to [0,1], or NAN_LANDMARK.
-        reason:     One of the REASON_* constants above.
-        confidence: Handedness score of the selected hand, or 0.0 on failure.
-    """
     if not result.multi_hand_landmarks:
         return NAN_LANDMARK.copy(), REASON_NO_DETECTION, 0.0
 
@@ -91,14 +75,63 @@ def extract_landmarks_from_result(
     uv = np.array(
         [[lm.x, lm.y] for lm in hand_landmarks.landmark],
         dtype=np.float32,
-    )  # shape: (21, 2)
+    )
 
     if np.any(uv < -0.05) or np.any(uv > 1.05):
         return NAN_LANDMARK.copy(), REASON_OUT_OF_BOUNDS, best_confidence
 
     uv = np.clip(uv, 0.0, 1.0)
-
     return uv, REASON_OK, best_confidence
+
+
+# ── Parallel worker ────────────────────────────────────────────────────────────
+
+
+def _process_chunk(args: tuple) -> list[dict]:
+    """
+    Worker function for multiprocessing — each worker gets its own MediaPipe
+    instance and processes a chunk of image paths independently.
+    """
+    chunk_paths, min_confidence = args
+
+    # Prevent OpenBLAS from spawning threads inside worker processes
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+
+    results = []
+    with mp.solutions.hands.Hands(
+        static_image_mode=True,
+        max_num_hands=2,
+        min_detection_confidence=min_confidence,
+        min_tracking_confidence=0.5,
+    ) as hands:
+        for img_path in chunk_paths:
+            entry = {"path": str(img_path.name)}
+
+            bgr = cv2.imread(str(img_path))
+            if bgr is None:
+                entry.update(
+                    {"reason": REASON_UNREADABLE, "confidence": 0.0, "uv": None}
+                )
+                results.append(entry)
+                continue
+
+            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+            h, w = rgb.shape[:2]
+            result = hands.process(rgb)
+
+            uv, reason, confidence = extract_landmarks_from_result(
+                result, w, h, min_confidence
+            )
+            entry.update(
+                {
+                    "reason": reason,
+                    "confidence": round(float(confidence), 4),
+                    "uv": uv.tolist() if reason == REASON_OK else None,
+                }
+            )
+            results.append(entry)
+
+    return results
 
 
 # ── Image folder mode ──────────────────────────────────────────────────────────
@@ -111,16 +144,8 @@ def process_image_folder(
     max_frames: int,
     min_confidence: float,
     dry_run: bool,
+    num_workers: int = 1,
 ) -> dict:
-    """
-    Run landmark extraction over a directory of .jpg / .png images.
-
-    If splits_path is provided, only images listed in the split index file
-    are processed (FreiHAND workflow). Otherwise all images in the folder
-    are processed in sorted order (EgoHands workflow).
-
-    Returns a summary dict.
-    """
     if splits_path is not None:
         with open(splits_path) as f:
             splits = json.load(f)
@@ -146,33 +171,69 @@ def process_image_folder(
     landmarks = np.full((n_frames, NUM_LANDMARKS, 2), np.nan, dtype=np.float32)
     log = []
 
-    with mp.solutions.hands.Hands(
-        static_image_mode=True,
-        max_num_hands=2,
-        min_detection_confidence=min_confidence,
-        min_tracking_confidence=0.5,
-    ) as hands:
-        for frame_idx, img_path in enumerate(
-            tqdm(image_paths, desc="Extracting", unit="img")
-        ):
-            entry = {"frame": frame_idx, "path": str(img_path.name)}
+    if num_workers > 1:
+        print(f"Running with {num_workers} parallel workers ...")
 
-            bgr = cv2.imread(str(img_path))
-            if bgr is None:
-                entry.update({"reason": REASON_UNREADABLE, "confidence": 0.0})
-                log.append(entry)
-                continue
+        chunk_size = max(1, n_frames // num_workers)
+        chunks = [
+            image_paths[i : i + chunk_size] for i in range(0, n_frames, chunk_size)
+        ]
+        pool_args = [(chunk, min_confidence) for chunk in chunks]
 
-            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-            h, w = rgb.shape[:2]
-            result = hands.process(rgb)
-
-            uv, reason, confidence = extract_landmarks_from_result(
-                result, w, h, min_confidence
+        with Pool(processes=num_workers) as pool:
+            chunk_results = list(
+                tqdm(
+                    pool.imap(_process_chunk, pool_args),
+                    total=len(chunks),
+                    desc="Chunks",
+                    unit="chunk",
+                )
             )
-            landmarks[frame_idx] = uv
-            entry.update({"reason": reason, "confidence": round(float(confidence), 4)})
-            log.append(entry)
+
+        # Flatten results back in original order
+        flat_results = [r for chunk in chunk_results for r in chunk]
+        for frame_idx, entry in enumerate(flat_results):
+            log.append(
+                {
+                    "frame": frame_idx,
+                    "path": entry["path"],
+                    "reason": entry["reason"],
+                    "confidence": entry["confidence"],
+                }
+            )
+            if entry["uv"] is not None:
+                landmarks[frame_idx] = np.array(entry["uv"], dtype=np.float32)
+
+    else:
+        with mp.solutions.hands.Hands(
+            static_image_mode=True,
+            max_num_hands=2,
+            min_detection_confidence=min_confidence,
+            min_tracking_confidence=0.5,
+        ) as hands:
+            for frame_idx, img_path in enumerate(
+                tqdm(image_paths, desc="Extracting", unit="img")
+            ):
+                entry = {"frame": frame_idx, "path": str(img_path.name)}
+
+                bgr = cv2.imread(str(img_path))
+                if bgr is None:
+                    entry.update({"reason": REASON_UNREADABLE, "confidence": 0.0})
+                    log.append(entry)
+                    continue
+
+                rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+                h, w = rgb.shape[:2]
+                result = hands.process(rgb)
+
+                uv, reason, confidence = extract_landmarks_from_result(
+                    result, w, h, min_confidence
+                )
+                landmarks[frame_idx] = uv
+                entry.update(
+                    {"reason": reason, "confidence": round(float(confidence), 4)}
+                )
+                log.append(entry)
 
     return _save_outputs(output_dir, landmarks, log, n_frames, dry_run)
 
@@ -188,12 +249,8 @@ def process_video(
     dry_run: bool,
 ) -> dict:
     """
-    Run landmark extraction over every frame of a video file.
-
-    Uses static_image_mode=False for faster processing — MediaPipe uses
-    tracking between frames when it knows the input is a video sequence.
-
-    Returns a summary dict.
+    Video mode is always single-threaded (frames must be read sequentially).
+    Uses static_image_mode=False so MediaPipe uses tracking between frames.
     """
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
@@ -254,10 +311,6 @@ def _save_outputs(
     n_frames: int,
     dry_run: bool,
 ) -> dict:
-    """
-    Compute summary statistics, print a report, and write output files.
-    Returns the summary dict (always, even in dry-run mode).
-    """
     reason_counts: dict[str, int] = {}
     for entry in log:
         r = entry.get("reason", REASON_NO_DETECTION)
@@ -326,7 +379,6 @@ def _save_outputs(
 
 
 def _longest_run(mask: np.ndarray) -> int:
-    """Return the length of the longest consecutive True run in a boolean array."""
     if not np.any(mask):
         return 0
     max_run = cur_run = 0
@@ -340,7 +392,6 @@ def _longest_run(mask: np.ndarray) -> int:
 
 
 def _mean_run_length(mask: np.ndarray) -> float:
-    """Return mean length of all consecutive True runs in a boolean array."""
     runs, cur = [], 0
     for val in mask:
         if val:
@@ -393,6 +444,13 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run detection but do not write any output files.",
     )
+    p.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of parallel worker processes (images mode only). "
+        "Default 1 = single-threaded. Set to match --cpus-per-task in SLURM.",
+    )
     return p.parse_args()
 
 
@@ -408,6 +466,7 @@ def main() -> None:
     print(f"  mode:           {args.mode}")
     print(f"  min_confidence: {args.min_confidence}")
     print(f"  max_frames:     {args.max_frames or 'unlimited'}")
+    print(f"  workers:        {args.workers}")
     print(f"  dry_run:        {args.dry_run}\n")
 
     if args.mode == "images":
@@ -422,6 +481,7 @@ def main() -> None:
             max_frames=args.max_frames,
             min_confidence=args.min_confidence,
             dry_run=args.dry_run,
+            num_workers=args.workers,
         )
     else:
         if not input_path.is_file():
