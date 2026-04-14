@@ -247,6 +247,8 @@ def process_video(
     max_frames: int,
     min_confidence: float,
     dry_run: bool,
+    start_frame: int = 0,
+    end_frame: int = 0,
 ) -> dict:
     """
     Video mode is always single-threaded (frames must be read sequentially).
@@ -260,11 +262,21 @@ def process_video(
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    n_frames = min(total_frames, max_frames) if max_frames > 0 else total_frames
+
+    # Determine frame range
+    frame_start = max(0, start_frame)
+    frame_end = end_frame if end_frame > 0 else total_frames
+    n_frames = frame_end - frame_start
+
+    if max_frames > 0:
+        n_frames = min(n_frames, max_frames)
+        frame_end = frame_start + n_frames
 
     print(f"Video: {video_path.name}")
     print(f"  {total_frames} frames  |  {fps:.1f} fps  |  {width}x{height}")
-    print(f"  Processing {n_frames} frames ...")
+    print(
+        f"  Processing frames {frame_start:,} to {frame_end:,} ({n_frames:,} frames) ..."
+    )
 
     landmarks = np.full((n_frames, NUM_LANDMARKS, 2), np.nan, dtype=np.float32)
     log = []
@@ -275,7 +287,11 @@ def process_video(
         min_detection_confidence=min_confidence,
         min_tracking_confidence=0.5,
     ) as hands:
-        for frame_idx in tqdm(range(n_frames), desc="Extracting", unit="frame"):
+        # Skip to start frame
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
+
+        for output_idx in tqdm(range(n_frames), desc="Extracting", unit="frame"):
+            frame_idx = frame_start + output_idx
             ret, bgr = cap.read()
             entry = {
                 "frame": frame_idx,
@@ -293,7 +309,7 @@ def process_video(
             uv, reason, confidence = extract_landmarks_from_result(
                 result, width, height, min_confidence
             )
-            landmarks[frame_idx] = uv
+            landmarks[output_idx] = uv
             entry.update({"reason": reason, "confidence": round(float(confidence), 4)})
             log.append(entry)
 
@@ -434,6 +450,18 @@ def parse_args() -> argparse.Namespace:
         help="Minimum MediaPipe handedness confidence to accept a detection.",
     )
     p.add_argument(
+        "--start-frame",
+        type=int,
+        default=0,
+        help="Start processing from this frame index (video mode only). 0 = beginning.",
+    )
+    p.add_argument(
+        "--end-frame",
+        type=int,
+        default=0,
+        help="Stop processing at this frame index (exclusive; video mode only). 0 = no limit.",
+    )
+    p.add_argument(
         "--max-frames",
         type=int,
         default=0,
@@ -494,6 +522,8 @@ def main() -> None:
             max_frames=args.max_frames,
             min_confidence=args.min_confidence,
             dry_run=args.dry_run,
+            start_frame=args.start_frame,
+            end_frame=args.end_frame,
         )
 
     elapsed = time.time() - start_time
