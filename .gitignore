@@ -1,6 +1,14 @@
 # Data: never commit raw or processed datasets
 data/raw/
 data/processed/
+# Data: never commit raw or processed datasets
+data/raw/
+data/processed/
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/processed/**/*.json
+*.npy
+*.h5
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 *.npy
