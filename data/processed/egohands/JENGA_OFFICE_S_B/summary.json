@@ -1,0 +1,17 @@
+{
+  "total_frames": 100,
+  "detected": 94,
+  "failed": 6,
+  "detection_rate": 0.94,
+  "failure_reasons": {
+    "ok": 94,
+    "no_detection": 6
+  },
+  "max_gap_frames": 2,
+  "mean_gap_frames": 1.2,
+  "output_shape": [
+    100,
+    21,
+    2
+  ]
+}
