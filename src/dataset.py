@@ -348,6 +348,113 @@ def build_dataloaders(
     return train_loader, val_loader, test_loader
 
 
+def build_dataloaders_merged(
+    config_path: str | Path,
+    merged_split_path: str | Path | None = None,
+) -> tuple[DataLoader, DataLoader, DataLoader]:
+    """
+    Build DataLoaders from the merged FreiHAND + EgoHands training split.
+
+    For training: concatenates windows from FreiHAND train + all EgoHands clips.
+    For validation: FreiHAND val only (EgoHands has no separate val split).
+    For test: custom gesture dataset (loaded separately in issue #16).
+
+    Args:
+        config_path:       Path to configs/default.yaml.
+        merged_split_path: Path to merged_train_split.json.
+                           Defaults to data/splits/merged_train_split.json.
+
+    Returns:
+        (train_loader, val_loader, test_loader)
+        Note: test_loader here is FreiHAND test only.
+        The custom gesture test split is evaluated separately in issue #16.
+    """
+    import yaml
+    from torch.utils.data import ConcatDataset
+
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+
+    merged_path = Path(merged_split_path or "data/splits/merged_train_split.json")
+    with open(merged_path) as f:
+        merged = json.load(f)
+
+    window_size = config["data"]["window_size"]
+    stride = config["data"].get("stride", 1)
+    batch_size = config["training"]["batch_size"]
+    num_workers = config["training"].get("num_workers", 4)
+
+    # ── FreiHAND splits ────────────────────────────────────────────────────────
+    fh_source = merged["sources"]["freihand"]
+    fh_lm_path = fh_source["landmarks_path"]
+
+    freihand_train_ds = AirSketchDataset(
+        landmarks_path=fh_lm_path,
+        split_indices=fh_source["train_indices"],
+        window_size=window_size,
+        stride=stride,
+        augment=True,
+    )
+    freihand_val_ds = AirSketchDataset(
+        landmarks_path=fh_lm_path,
+        split_indices=fh_source["val_indices"],
+        window_size=window_size,
+        stride=stride,
+        augment=False,
+    )
+
+    # ── EgoHands clips (all go into training) ─────────────────────────────────
+    egohands_datasets = []
+    for clip_name, clip_info in merged["sources"]["egohands"]["clips"].items():
+        if clip_info["detection_rate"] < 0.70:
+            print(
+                f"  Skipping low-detection clip: {clip_name} "
+                f"({clip_info['detection_rate']*100:.1f}%)"
+            )
+            continue
+        ds = AirSketchDataset(
+            landmarks_path=clip_info["landmarks_path"],
+            split_indices=list(range(clip_info["n_frames"])),
+            window_size=window_size,
+            stride=stride,
+            augment=True,
+        )
+        egohands_datasets.append(ds)
+
+    # ── Concatenate FreiHAND train + all EgoHands ──────────────────────────────
+    if egohands_datasets:
+        train_ds = ConcatDataset([freihand_train_ds] + egohands_datasets)
+        eg_windows = sum(len(d) for d in egohands_datasets)
+        print(
+            f"  EgoHands clips loaded: {len(egohands_datasets)} "
+            f"({eg_windows:,} windows)"
+        )
+    else:
+        train_ds = freihand_train_ds
+        print("  WARNING: No EgoHands clips loaded — using FreiHAND only.")
+
+    print(f"  Total train windows: {len(train_ds):,}")
+    print(f"  Total val windows:   {len(freihand_val_ds):,}")
+
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=True,
+    )
+    val_loader = DataLoader(
+        freihand_val_ds,
+        batch_size=batch_size * 2,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
+
+    return train_loader, val_loader
+
+
 def _print_dataloader_summary(
     train_ds: AirSketchDataset,
     val_ds: AirSketchDataset,
