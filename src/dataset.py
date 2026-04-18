@@ -439,28 +439,48 @@ def build_dataloaders_merged(
         else:
             egohands_train_datasets.append(ds)
 
+    # ── Custom sessions (go into training) ────────────────────────────────────
+    custom_datasets = []
+    for session_name, session_info in (
+        merged.get("sources", {}).get("custom", {}).get("sessions", {}).items()
+    ):
+        ds = AirSketchDataset(
+            landmarks_path=session_info["landmarks_path"],
+            split_indices=list(range(session_info["n_frames"])),
+            window_size=window_size,
+            stride=stride,
+            augment=True,
+        )
+        custom_datasets.append(ds)
+        print(f"  Custom session loaded: {session_name} ({len(ds):,} windows)")
+
     # ── Build train dataset ────────────────────────────────────────────────────
     egohands_only = config.get("training", {}).get("egohands_only", False)
+    motion_train = egohands_train_datasets + custom_datasets
 
     if egohands_only:
-        if egohands_train_datasets:
-            train_ds = ConcatDataset(egohands_train_datasets)
-            eg_windows = sum(len(d) for d in egohands_train_datasets)
+        if motion_train:
+            train_ds = ConcatDataset(motion_train)
             print("  [egohands_only] FreiHAND excluded.")
             print(
-                f"  EgoHands train clips: {len(egohands_train_datasets)} ({eg_windows:,} windows)"
+                f"  EgoHands train clips: {len(egohands_train_datasets)} ({sum(len(d) for d in egohands_train_datasets):,} windows)"
+            )
+            print(
+                f"  Custom sessions:      {len(custom_datasets)} ({sum(len(d) for d in custom_datasets):,} windows)"
             )
         else:
-            raise RuntimeError("egohands_only=true but no EgoHands train clips loaded.")
-    elif egohands_train_datasets:
-        train_ds = ConcatDataset([freihand_train_ds] + egohands_train_datasets)
-        eg_windows = sum(len(d) for d in egohands_train_datasets)
+            raise RuntimeError("egohands_only=true but no motion train data loaded.")
+    elif motion_train:
+        train_ds = ConcatDataset([freihand_train_ds] + motion_train)
         print(
-            f"  EgoHands train clips: {len(egohands_train_datasets)} ({eg_windows:,} windows)"
+            f"  EgoHands train clips: {len(egohands_train_datasets)} ({sum(len(d) for d in egohands_train_datasets):,} windows)"
+        )
+        print(
+            f"  Custom sessions:      {len(custom_datasets)} ({sum(len(d) for d in custom_datasets):,} windows)"
         )
     else:
         train_ds = freihand_train_ds
-        print("  WARNING: No EgoHands clips loaded — using FreiHAND only.")
+        print("  WARNING: No motion data loaded — using FreiHAND only.")
 
     # ── Build val dataset ──────────────────────────────────────────────────────
     if egohands_val_datasets:
