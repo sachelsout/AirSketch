@@ -296,17 +296,7 @@ def train(
         )
 
     print("\nBuilding DataLoaders ...")
-    train_loader, val_loader = build_dataloaders_merged(config_path)
-
-    if debug:
-        from itertools import islice
-
-        train_loader = list(islice(train_loader, 2))
-        val_loader = list(islice(val_loader, 2))
-        print("  [debug] Using 2 batches per split.")
-
-    print("\nBuilding model ...")
-    model = build_model(config, device=device)
+    train_loader, val_loader = build_dataloaders_merged(config_path, config=config)
 
     # Retrieve inverse-frequency class weights from training dataset.
     # Passed to AirSketchLoss to compensate for FreiHAND's ~80% idle skew.
@@ -317,6 +307,16 @@ def train(
         class_weights = train_loader.dataset.datasets[0].get_class_weights().to(device)
     else:
         class_weights = None
+
+    if debug:
+        from itertools import islice
+
+        train_loader = list(islice(train_loader, 2))
+        val_loader = list(islice(val_loader, 2))
+        print("  [debug] Using 2 batches per split.")
+
+    print("\nBuilding model ...")
+    model = build_model(config, device=device)
 
     gesture_lam = config.get("model", {}).get("gesture_loss_weight", 0.5)
     loss_fn = AirSketchLoss(

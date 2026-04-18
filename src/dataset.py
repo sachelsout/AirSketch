@@ -351,7 +351,8 @@ def build_dataloaders(
 def build_dataloaders_merged(
     config_path: str | Path,
     merged_split_path: str | Path | None = None,
-) -> tuple[DataLoader, DataLoader, DataLoader]:
+    config: dict | None = None,
+) -> tuple[DataLoader, DataLoader]:
     """
     Build DataLoaders from the merged FreiHAND + EgoHands training split.
 
@@ -372,8 +373,9 @@ def build_dataloaders_merged(
     import yaml
     from torch.utils.data import ConcatDataset
 
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
+    if config is None:
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
 
     merged_path = Path(merged_split_path or "data/splits/merged_train_split.json")
     with open(merged_path) as f:
