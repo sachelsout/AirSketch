@@ -422,12 +422,23 @@ def build_dataloaders_merged(
         egohands_datasets.append(ds)
 
     # ── Concatenate FreiHAND train + all EgoHands ──────────────────────────────
-    if egohands_datasets:
+    egohands_only = config.get("training", {}).get("egohands_only", False)
+
+    if egohands_only:
+        if egohands_datasets:
+            train_ds = ConcatDataset(egohands_datasets)
+            eg_windows = sum(len(d) for d in egohands_datasets)
+            print("  [egohands_only] FreiHAND excluded.")
+            print(
+                f"  EgoHands clips loaded: {len(egohands_datasets)} ({eg_windows:,} windows)"
+            )
+        else:
+            raise RuntimeError("egohands_only=true but no EgoHands clips loaded.")
+    elif egohands_datasets:
         train_ds = ConcatDataset([freihand_train_ds] + egohands_datasets)
         eg_windows = sum(len(d) for d in egohands_datasets)
         print(
-            f"  EgoHands clips loaded: {len(egohands_datasets)} "
-            f"({eg_windows:,} windows)"
+            f"  EgoHands clips loaded: {len(egohands_datasets)} ({eg_windows:,} windows)"
         )
     else:
         train_ds = freihand_train_ds
