@@ -439,20 +439,41 @@ def build_dataloaders_merged(
         else:
             egohands_train_datasets.append(ds)
 
-    # ── Custom sessions (go into training) ────────────────────────────────────
+    # ── Custom sessions — 80/20 train/val split ───────────────────────────────
     custom_datasets = []
+    custom_val_datasets = []
     for session_name, session_info in (
         merged.get("sources", {}).get("custom", {}).get("sessions", {}).items()
     ):
-        ds = AirSketchDataset(
+        train_indices = session_info.get(
+            "train_frames", list(range(session_info["n_frames"]))
+        )
+        val_indices = session_info.get("val_frames", [])
+
+        train_ds_custom = AirSketchDataset(
             landmarks_path=session_info["landmarks_path"],
-            split_indices=list(range(session_info["n_frames"])),
+            split_indices=train_indices,
             window_size=window_size,
             stride=stride,
             augment=True,
         )
-        custom_datasets.append(ds)
-        print(f"  Custom session loaded: {session_name} ({len(ds):,} windows)")
+        custom_datasets.append(train_ds_custom)
+        print(
+            f"  Custom session train: {session_name} ({len(train_ds_custom):,} windows)"
+        )
+
+        if val_indices:
+            val_ds_custom = AirSketchDataset(
+                landmarks_path=session_info["landmarks_path"],
+                split_indices=val_indices,
+                window_size=window_size,
+                stride=stride,
+                augment=False,
+            )
+            custom_val_datasets.append(val_ds_custom)
+            print(
+                f"  Custom session val:  {session_name} ({len(val_ds_custom):,} windows)"
+            )
 
     # ── Build train dataset ────────────────────────────────────────────────────
     egohands_only = config.get("training", {}).get("egohands_only", False)
@@ -483,7 +504,11 @@ def build_dataloaders_merged(
         print("  WARNING: No motion data loaded — using FreiHAND only.")
 
     # ── Build val dataset ──────────────────────────────────────────────────────
-    if egohands_val_datasets:
+    if custom_val_datasets:
+        val_ds = ConcatDataset(custom_val_datasets)
+        val_windows = sum(len(d) for d in custom_val_datasets)
+        print(f"  Custom val windows:   {val_windows:,}")
+    elif egohands_val_datasets:
         val_ds = ConcatDataset(egohands_val_datasets)
         val_windows = sum(len(d) for d in egohands_val_datasets)
         print(
@@ -491,7 +516,7 @@ def build_dataloaders_merged(
         )
     else:
         val_ds = freihand_val_ds
-        print("  WARNING: No EgoHands val clips — falling back to FreiHAND val.")
+        print("  WARNING: No custom/EgoHands val clips — falling back to FreiHAND val.")
 
     print(f"  Total train windows: {len(train_ds):,}")
     print(f"  Total val windows:   {len(val_ds):,}")
