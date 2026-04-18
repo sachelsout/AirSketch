@@ -51,8 +51,6 @@ print('All imports OK')
 export WANDB_MODE=offline
 
 # ── Run ───────────────────────────────────────────────────────────────────────
-python src/train.py --config configs/default.yaml \
-    --override training.egohands_only=true \
-    --run-name egohands_only
+python src/train.py --config configs/default.yaml --run-name merged_egohands_val
 
 echo "End time: $(date)"
