@@ -48,6 +48,8 @@ import onnxruntime
 print('All imports OK')
 " || { echo "Import check failed — aborting job"; exit 1; }
 
+export WANDB_MODE=offline
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 python src/train.py --config $CONFIG
 
