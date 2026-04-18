@@ -17,8 +17,8 @@ unset PYTHONPATH
 module load python/3.10.10/gcc/11.3.0/cuda/12.3.0/linux-rhel8-zen2
 module load cuda/12.3.0/gcc/11.3.0/zen2
 module load cudnn/8.9.7.29-12/gcc/11.3.0/zen2
-source $HOME/envs/airsketch/bin/activate
-export PYTHONPATH=$HOME/envs/airsketch/lib/python3.10/site-packages:$PYTHONPATH
+source $HOME/scratch/envs/airsketch/bin/activate
+export PYTHONPATH=$HOME/scratch/envs/airsketch/lib/python3.10/site-packages:$PYTHONPATH
 export WANDB_ERROR_REPORTING=false
 export WANDB_API_KEY=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
 

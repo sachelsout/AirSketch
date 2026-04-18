@@ -310,10 +310,13 @@ def train(
 
     # Retrieve inverse-frequency class weights from training dataset.
     # Passed to AirSketchLoss to compensate for FreiHAND's ~80% idle skew.
-    if hasattr(train_loader, "dataset"):
+    if hasattr(train_loader.dataset, "get_class_weights"):
         class_weights = train_loader.dataset.get_class_weights().to(device)
+    elif hasattr(train_loader.dataset, "datasets"):
+        # ConcatDataset — get weights from the first sub-dataset (FreiHAND)
+        class_weights = train_loader.dataset.datasets[0].get_class_weights().to(device)
     else:
-        class_weights = None  # debug mode: list of batches, no .dataset attr
+        class_weights = None
 
     gesture_lam = config.get("model", {}).get("gesture_loss_weight", 0.5)
     loss_fn = AirSketchLoss(
