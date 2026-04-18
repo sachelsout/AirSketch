@@ -405,8 +405,21 @@ def build_dataloaders_merged(
         augment=False,
     )
 
-    # ── EgoHands clips (all go into training) ─────────────────────────────────
-    egohands_datasets = []
+    # ── EgoHands clips — stratified 40/8 train/val split ─────────────────────
+    VAL_CLIPS = {
+        "CARDS_COURTYARD_B_T",
+        "CARDS_LIVINGROOM_B_T",
+        "CHESS_COURTYARD_B_T",
+        "CHESS_LIVINGROOM_B_S",
+        "JENGA_COURTYARD_B_H",
+        "JENGA_OFFICE_B_S",
+        "PUZZLE_COURTYARD_B_S",
+        "PUZZLE_LIVINGROOM_B_T",
+    }
+
+    egohands_train_datasets = []
+    egohands_val_datasets = []
+
     for clip_name, clip_info in merged["sources"]["egohands"]["clips"].items():
         if clip_info["detection_rate"] < 0.70:
             print(
@@ -419,35 +432,49 @@ def build_dataloaders_merged(
             split_indices=list(range(clip_info["n_frames"])),
             window_size=window_size,
             stride=stride,
-            augment=True,
+            augment=clip_name not in VAL_CLIPS,
         )
-        egohands_datasets.append(ds)
+        if clip_name in VAL_CLIPS:
+            egohands_val_datasets.append(ds)
+        else:
+            egohands_train_datasets.append(ds)
 
-    # ── Concatenate FreiHAND train + all EgoHands ──────────────────────────────
+    # ── Build train dataset ────────────────────────────────────────────────────
     egohands_only = config.get("training", {}).get("egohands_only", False)
 
     if egohands_only:
-        if egohands_datasets:
-            train_ds = ConcatDataset(egohands_datasets)
-            eg_windows = sum(len(d) for d in egohands_datasets)
+        if egohands_train_datasets:
+            train_ds = ConcatDataset(egohands_train_datasets)
+            eg_windows = sum(len(d) for d in egohands_train_datasets)
             print("  [egohands_only] FreiHAND excluded.")
             print(
-                f"  EgoHands clips loaded: {len(egohands_datasets)} ({eg_windows:,} windows)"
+                f"  EgoHands train clips: {len(egohands_train_datasets)} ({eg_windows:,} windows)"
             )
         else:
-            raise RuntimeError("egohands_only=true but no EgoHands clips loaded.")
-    elif egohands_datasets:
-        train_ds = ConcatDataset([freihand_train_ds] + egohands_datasets)
-        eg_windows = sum(len(d) for d in egohands_datasets)
+            raise RuntimeError("egohands_only=true but no EgoHands train clips loaded.")
+    elif egohands_train_datasets:
+        train_ds = ConcatDataset([freihand_train_ds] + egohands_train_datasets)
+        eg_windows = sum(len(d) for d in egohands_train_datasets)
         print(
-            f"  EgoHands clips loaded: {len(egohands_datasets)} ({eg_windows:,} windows)"
+            f"  EgoHands train clips: {len(egohands_train_datasets)} ({eg_windows:,} windows)"
         )
     else:
         train_ds = freihand_train_ds
         print("  WARNING: No EgoHands clips loaded — using FreiHAND only.")
 
+    # ── Build val dataset ──────────────────────────────────────────────────────
+    if egohands_val_datasets:
+        val_ds = ConcatDataset(egohands_val_datasets)
+        val_windows = sum(len(d) for d in egohands_val_datasets)
+        print(
+            f"  EgoHands val clips:   {len(egohands_val_datasets)} ({val_windows:,} windows)"
+        )
+    else:
+        val_ds = freihand_val_ds
+        print("  WARNING: No EgoHands val clips — falling back to FreiHAND val.")
+
     print(f"  Total train windows: {len(train_ds):,}")
-    print(f"  Total val windows:   {len(freihand_val_ds):,}")
+    print(f"  Total val windows:   {len(val_ds):,}")
 
     train_loader = DataLoader(
         train_ds,
@@ -458,7 +485,7 @@ def build_dataloaders_merged(
         drop_last=True,
     )
     val_loader = DataLoader(
-        freihand_val_ds,
+        val_ds,
         batch_size=batch_size * 2,
         shuffle=False,
         num_workers=num_workers,
