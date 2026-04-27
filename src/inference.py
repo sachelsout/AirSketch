@@ -471,6 +471,7 @@ class InferenceLoop:
         log_path: str | Path | None = None,
         print_every: int = 30,
         frame_callback: Callable | None = None,
+        ema_alpha: float = 0.3,
     ):
         self.model_path = Path(model_path)
         self.camera_index = camera_index
@@ -480,13 +481,14 @@ class InferenceLoop:
         self.log_path = log_path
         self.print_every = print_every
         self.frame_callback = frame_callback
-
         self._extractor = LandmarkExtractor(
             min_detection_confidence=min_detection_confidence,
             min_tracking_confidence=min_tracking_confidence,
         )
         self._predictor = ONNXPredictor(self.model_path, num_ort_threads)
         self._buffer = FrameBuffer(WINDOW_SIZE)
+        self._ema_xy = None
+        self._ema_alpha = ema_alpha
         self._stats = LoopStats()
         self._logger = LatencyLogger(print_every, log_path)
 
@@ -559,6 +561,16 @@ class InferenceLoop:
             pred_xy = np.array([0.5, 0.5], dtype=np.float32)
             gesture = 0
             gesture_conf = 0.5
+
+        # -- EMA smoothing ------------------------------------------------
+        if not np.any(np.isnan(pred_xy)):
+            if self._ema_xy is None:
+                self._ema_xy = pred_xy.copy()
+            else:
+                self._ema_xy = (
+                    self._ema_alpha * pred_xy + (1 - self._ema_alpha) * self._ema_xy
+                )
+            pred_xy = self._ema_xy.copy()
 
         # -- Stage 5: Output packaging ----------------------------------------
         latency_ms = (time.perf_counter() - capture_ts) * 1000.0
@@ -762,6 +774,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--num-threads", type=int, default=0, help="ORT intra-op threads. 0 = auto."
     )
+    p.add_argument(
+        "--ema-alpha",
+        type=float,
+        default=0.05,
+        help="EMA smoothing factor. Lower = smoother.",
+    )
     return p.parse_args()
 
 
@@ -775,6 +793,7 @@ if __name__ == "__main__":
         target_fps=args.fps,
         log_path=args.log_path,
         num_ort_threads=args.num_threads,
+        ema_alpha=args.ema_alpha,
     )
     for _ in loop.run(
         max_frames=args.max_frames,
