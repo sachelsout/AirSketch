@@ -1,39 +1,65 @@
 # configs/sweep.yaml
-# W&B hyperparameter sweep configuration for AirSketch.
-# Issue #11 runs this sweep. Issue #3 commits the file.
 #
-# Launch with:
-#   wandb sweep configs/sweep.yaml                         → prints a sweep ID
-#   wandb agent airsketch/AirSketch/<sweep-id>         → starts a worker
+# W&B hyperparameter sweep configuration for AirSketch.
+#
+# This file was committed in issue #3 as a placeholder.
+# Replace that version with this fully-specified config before launching.
+#
+# Launch workflow:
+#   Step 1 — Register the sweep (run once from login node):
+#     wandb sweep configs/sweep.yaml
+#     --> prints: wandb: Created sweep with ID: <sweep-id>
+#
+#   Step 2 -- Submit one SLURM array job to run all 27 agents:
+#     SWEEP_ID=<sweep-id> sbatch scripts/slurm/sweep_agent.sh
+#
+# Each agent picks one config, trains to completion, logs to W&B, exits.
+# W&B coordinates which config each agent runs -- no manual assignment needed.
 
 program: src/train.py
-method: grid
+method:  grid        # exhaustive grid search -- all 27 combos
 
 metric:
   name: val/mpjpe
   goal: minimize
 
+# Early termination: stop a run if val/mpjpe has not improved by more than
+# min_delta after min_iter epochs. Frees GPU for better configs.
 early_terminate:
-  type: hyperband
-  min_iter: 5
-  eta: 2
+  type:      hyperband
+  min_iter:  10
+  eta:       2        # halving rate -- aggressive enough to save time
 
 parameters:
-  model.hidden_dim:
-    values: [64, 128, 256]
 
+  # -- Swept parameters -------------------------------------------------------
   model.num_layers:
     values: [2, 4, 6]
+
+  model.hidden_dim:
+    values: [64, 128, 256]
 
   training.learning_rate:
     values: [0.001, 0.0005, 0.0001]
 
-  # Fixed for the sweep — not being searched
-  training.batch_size:
-    value: 64
-
+  # -- Fixed parameters (passed through sweep so they appear in W&B run config)
   training.epochs:
     value: 50
 
+  training.batch_size:
+    value: 64
+
+  model.num_heads:
+    value: 4
+
   model.dropout:
     value: 0.1
+
+  model.gesture_loss_weight:
+    value: 0.5
+
+  training.weight_decay:
+    value: 0.01
+
+  training.seed:
+    value: 42
