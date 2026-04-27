@@ -62,6 +62,8 @@ class STTransformerConfig:
     num_landmarks: int = 21
     input_dim: int = 42  # num_landmarks * 2
     gesture_loss_weight: float = 0.5
+    disable_spatial_attention: bool = False
+    disable_temporal_attention: bool = False
 
     def __post_init__(self):
         assert self.hidden_dim % self.num_heads == 0, (
@@ -84,6 +86,8 @@ class STTransformerConfig:
             dropout=m.get("dropout", 0.1),
             window_size=config.get("data", {}).get("window_size", 16),
             gesture_loss_weight=m.get("gesture_loss_weight", 0.5),
+            disable_spatial_attention=m.get("disable_spatial_attention", False),
+            disable_temporal_attention=m.get("disable_temporal_attention", False),
         )
 
 
@@ -284,6 +288,9 @@ class STBlock(nn.Module):
 
     def __init__(self, d_model: int, num_heads: int, dropout: float = 0.1):
         super().__init__()
+        self.disable_spatial = False
+        self.disable_temporal = False
+
         self.spatial_norm = nn.LayerNorm(d_model)
         self.spatial_attn = SpatialSelfAttention(d_model, num_heads, dropout)
 
@@ -300,11 +307,11 @@ class STBlock(nn.Module):
         Returns:
             (B, T, J, d)
         """
-        # Spatial attention with pre-norm residual
-        x = x + self.spatial_attn(self.spatial_norm(x))
+        if not self.disable_spatial:
+            x = x + self.spatial_attn(self.spatial_norm(x))
 
-        # Temporal attention with pre-norm residual
-        x = x + self.temporal_attn(self.temporal_norm(x))
+        if not self.disable_temporal:
+            x = x + self.temporal_attn(self.temporal_norm(x))
 
         # FFN with pre-norm residual (apply over last dim, broadcast over B,T,J)
         x = x + self.ffn(self.ffn_norm(x))
@@ -433,6 +440,11 @@ class STTransformer(nn.Module):
                 for _ in range(config.num_layers)
             ]
         )
+
+        # ── Propagate ablation flags to blocks ───────────────────────────────────
+        for block in self.blocks:
+            block.disable_spatial = config.disable_spatial_attention
+            block.disable_temporal = config.disable_temporal_attention
 
         # ── Output layer norm (applied before heads) ──────────────────────────
         self.norm = nn.LayerNorm(d)
