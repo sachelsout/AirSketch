@@ -15,7 +15,7 @@ data/processed/
 *.h5
 
 # Model checkpoints: too large for git
-checkpoints/
+
 *.pt
 *.pth
 *.onnx
@@ -63,4 +63,4 @@ logs/
 
 pc/
 
-checkpoints/
+checkpoints/*.onnx

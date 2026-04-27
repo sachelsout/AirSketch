@@ -1,0 +1,40 @@
+{
+  "checkpoint": "checkpoints\\best_model.pt",
+  "onnx_path": "checkpoints\\best_model.onnx",
+  "optimized_path": "checkpoints\\best_model.optimized.onnx",
+  "opset_version": 17,
+  "onnxruntime_version": "1.18.0",
+  "platform": "Windows-10-10.0.26200-SP0",
+  "cpu": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "parity": {
+    "max_diff_xy": 1.1920928955078125e-07,
+    "max_diff_gesture": 3.337860107421875e-06,
+    "tolerance": 1e-05,
+    "n_samples": 100,
+    "passed": true
+  },
+  "latency_onnx": {
+    "mean_ms": 4.265382000186946,
+    "median_ms": 4.022449997137301,
+    "p95_ms": 5.255049996776506,
+    "p99_ms": 5.391045013384428,
+    "min_ms": 3.4651999885682017,
+    "max_ms": 5.486899986863136,
+    "std_ms": 0.6154177956651435,
+    "target_ms": 50.0,
+    "n_warmup": 200,
+    "n_bench": 500,
+    "passed": true
+  },
+  "latency_pytorch": {
+    "mean_ms": 10.937983999028802,
+    "median_ms": 10.920149987214245,
+    "p95_ms": 11.380789980466943,
+    "speedup_vs_onnx": 2.56
+  },
+  "model_config": {
+    "hidden_dim": 128,
+    "num_layers": 4,
+    "num_heads": 4
+  }
+}
