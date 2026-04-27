@@ -1,0 +1,6 @@
+rank,hidden_dim,num_layers,lr,val_mpjpe,val_gesture,notes
+1,128,4,0.0005,6.22,0.928,best config
+2,128,6,0.0005,6.51,0.944,
+3,64,2,0.001,7.88,0.916,small baseline
+4,256,6,0.0001,7.61,0.920,terminated at epoch ~39 due to time limit
+5,256,4,0.0005,12.29,0.850,did not converge
