@@ -86,6 +86,8 @@ class InferenceResult:
     latency_ms: float
     frame_idx: int
     timestamp_ms: float
+    is_pointing: bool = False
+    is_fist: bool = False
 
     def pred_xy_px(self, width: int = 1280, height: int = 720):
         """Return pred_xy scaled to pixel coordinates."""
@@ -306,6 +308,48 @@ class LandmarkExtractor:
 
         return np.clip(uv, 0.0, 1.0)
 
+    @staticmethod
+    def is_pointing(landmarks: np.ndarray) -> bool:
+        """
+        Check if the hand is in a pointing pose -- index finger extended,
+        other fingers curled.
+
+        Uses y-coordinate relationships between fingertip and MCP joints.
+        In normalized coords, smaller y = higher in frame.
+
+        Landmark indices:
+            Index:  MCP=5, PIP=6, DIP=7, TIP=8
+            Middle: MCP=9, TIP=12
+            Ring:   MCP=13, TIP=16
+            Pinky:  MCP=17, TIP=20
+            Thumb:  MCP=2, TIP=4
+        """
+        if landmarks is None or np.any(np.isnan(landmarks)):
+            return False
+
+        # Use PIP joints and a small margin to reduce flicker from jitter.
+        margin = 0.015
+
+        # Index finger extended: tip is clearly above PIP.
+        index_extended = landmarks[8, 1] < (landmarks[6, 1] - margin)
+
+        # Other fingers curled: tips are clearly below their PIP joints.
+        middle_curled = landmarks[12, 1] > (landmarks[10, 1] + margin)
+        ring_curled = landmarks[16, 1] > (landmarks[14, 1] + margin)
+        pinky_curled = landmarks[20, 1] > (landmarks[18, 1] + margin)
+
+        return index_extended and middle_curled and ring_curled and pinky_curled
+
+    @staticmethod
+    def is_fist(landmarks: np.ndarray) -> bool:
+        if landmarks is None or np.any(np.isnan(landmarks)):
+            return False
+        index_curled = landmarks[8, 1] > landmarks[5, 1]
+        middle_curled = landmarks[12, 1] > landmarks[9, 1]
+        ring_curled = landmarks[16, 1] > landmarks[13, 1]
+        pinky_curled = landmarks[20, 1] > landmarks[17, 1]
+        return index_curled and middle_curled and ring_curled and pinky_curled
+
 
 # -- ONNX inference session ----------------------------------------------------
 
@@ -471,6 +515,7 @@ class InferenceLoop:
         log_path: str | Path | None = None,
         print_every: int = 30,
         frame_callback: Callable | None = None,
+        key_callback: Callable | None = None,
         ema_alpha: float = 0.3,
     ):
         self.model_path = Path(model_path)
@@ -481,6 +526,7 @@ class InferenceLoop:
         self.log_path = log_path
         self.print_every = print_every
         self.frame_callback = frame_callback
+        self.key_callback = key_callback
         self._extractor = LandmarkExtractor(
             min_detection_confidence=min_detection_confidence,
             min_tracking_confidence=min_tracking_confidence,
@@ -548,6 +594,8 @@ class InferenceLoop:
         # -- Stage 2: MediaPipe landmark extraction ---------------------------
         landmarks = self._extractor.extract(bgr_frame)
         detected = landmarks is not None
+        pointing = LandmarkExtractor.is_pointing(landmarks) if detected else False
+        is_fist = LandmarkExtractor.is_fist(landmarks) if detected else False
 
         # -- Stage 3: Buffer update -------------------------------------------
         self._buffer.push(landmarks)
@@ -572,18 +620,33 @@ class InferenceLoop:
                 )
             pred_xy = self._ema_xy.copy()
 
-        # -- Stage 5: Output packaging ----------------------------------------
+        # Guard against invalid model outputs to keep downstream rendering safe.
+        if not np.all(np.isfinite(pred_xy)):
+            if self._ema_xy is not None and np.all(np.isfinite(self._ema_xy)):
+                pred_xy = self._ema_xy.copy()
+            else:
+                pred_xy = np.array([0.5, 0.5], dtype=np.float32)
+        pred_xy = np.clip(pred_xy, 0.0, 1.0).astype(np.float32)
+
+        # -- Stage 5: Pose-driven draw-state gating ----------------------------
+        # Draw when a valid hand is detected and the pointing pose is active.
+        # This avoids interruptions caused by transient model gesture flips.
+        is_drawing = detected and np.all(np.isfinite(pred_xy)) and pointing
+
+        # -- Stage 6: Output packaging ----------------------------------------
         latency_ms = (time.perf_counter() - capture_ts) * 1000.0
 
         return InferenceResult(
             pred_xy=pred_xy,
             gesture=gesture,
             gesture_conf=gesture_conf,
-            is_drawing=(gesture == 1),
+            is_drawing=is_drawing,
             landmark_detected=detected,
             latency_ms=latency_ms,
             frame_idx=frame_idx,
             timestamp_ms=capture_ts * 1000.0,
+            is_pointing=pointing,
+            is_fist=is_fist,
         )
 
     def run(
@@ -621,6 +684,8 @@ class InferenceLoop:
                     # -- Stage 1: Frame capture --------------------------------
                     capture_ts = time.perf_counter()
                     ret, bgr = cap.read()
+                    if ret and bgr is not None:
+                        bgr = cv2.flip(bgr, 1)
 
                     if not ret or bgr is None:
                         print(f"  WARNING: Frame {frame_idx} read failed -- skipping.")
@@ -650,10 +715,17 @@ class InferenceLoop:
                         print(f"\n  max_frames={max_frames} reached. Stopping.")
                         break
 
-                    # -- Q to quit --------------------------------------------
-                    if cv2.waitKey(1) & 0xFF == ord("q"):
-                        print("\n  Q pressed. Stopping.")
-                        break
+                    # -- Q to quit / key callback -----------------------------
+                    # cv2.waitKey() returns -1 when no key is pressed.
+                    # Avoid forwarding synthetic 255 values to key handlers.
+                    raw_key = cv2.waitKey(1)
+                    if raw_key != -1:
+                        key = raw_key & 0xFF
+                        if key == ord("q"):
+                            print("\n  Q pressed. Stopping.")
+                            break
+                        if self.key_callback is not None:
+                            self.key_callback(key)
 
         finally:
             cap.release()
