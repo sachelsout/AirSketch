@@ -65,3 +65,4 @@ pc/
 
 checkpoints/*.onnx
 wandb_runs/
+report/eval/*_results.csv

@@ -280,6 +280,24 @@ def load_custom_test_windows(
 # -- Evaluation runner ---------------------------------------------------------
 
 
+def _apply_ema(pred_xy: np.ndarray, alpha: float) -> np.ndarray:
+    """
+    Apply exponential moving average smoothing over a sequence of predictions.
+
+    Args:
+        pred_xy: (N, 2) float32 raw predictions in order.
+        alpha:   EMA weight for new observation (0 < alpha <= 1).
+                 alpha=1.0 means no smoothing.
+
+    Returns:
+        (N, 2) float32 smoothed predictions.
+    """
+    smoothed = pred_xy.copy()
+    for i in range(1, len(smoothed)):
+        smoothed[i] = alpha * pred_xy[i] + (1 - alpha) * smoothed[i - 1]
+    return smoothed
+
+
 def evaluate_split(
     sess: ort.InferenceSession,
     windows: np.ndarray,
@@ -287,6 +305,8 @@ def evaluate_split(
     gestures: np.ndarray,
     split_name: str,
     batch_size: int = 256,
+    ema_alpha: float = 0.8,
+    session_ids: list[str] | None = None,
 ) -> pd.DataFrame:
     """
     Run inference and compute per-window metrics for one test split.
@@ -317,6 +337,29 @@ def evaluate_split(
 
     print()
 
+    # EMA smoothing + jitter: apply per-session when session IDs are available,
+    # otherwise treat the whole sequence as one (e.g. FreiHAND contiguous split).
+    if session_ids is not None:
+        session_arr = np.array(session_ids)
+        unique_sessions = list(dict.fromkeys(session_ids))  # preserves order
+
+        if ema_alpha < 1.0:
+            for sid in unique_sessions:
+                mask = session_arr == sid
+                all_pred_xy[mask] = _apply_ema(all_pred_xy[mask], ema_alpha)
+            print(f"  EMA smoothing applied per-session (alpha={ema_alpha})")
+
+        jitter_vals = [
+            jitter_index_per_sequence(all_pred_xy[session_arr == sid])
+            for sid in unique_sessions
+        ]
+        jitter = float(np.mean(jitter_vals))
+    else:
+        if ema_alpha < 1.0:
+            all_pred_xy = _apply_ema(all_pred_xy, ema_alpha)
+            print(f"  EMA smoothing applied (alpha={ema_alpha})")
+        jitter = jitter_index_per_sequence(all_pred_xy)
+
     # Per-window metrics
     mpjpe = mpjpe_per_window(all_pred_xy, targets)  # (N,)
     preds = np.argmax(all_ges_logits, axis=1)  # (N,)
@@ -342,10 +385,7 @@ def evaluate_split(
     p95_mpjpe = float(np.percentile(mpjpe, 95))
     ges_acc = float(correct.mean())
 
-    # Jitter index -- requires computing over sequences, not individual windows
-    # Use overlapping windows' predicted positions as a proxy sequence
-    jitter = jitter_index_per_sequence(all_pred_xy)
-
+    # Jitter was already computed above (per-session or global)
     print(
         f"  MPJPE mean:      {mean_mpjpe:.2f} px  "
         f"({'PASS' if mean_mpjpe < TARGETS['mpjpe_px'] else 'FAIL'})"
@@ -880,6 +920,7 @@ def main(
     skip_custom: bool,
     max_windows: int,
     batch_size: int,
+    ema_alpha: float = 0.8,
 ) -> None:
     model_path = Path(model_path)
     out_dir = Path(out_dir)
@@ -898,7 +939,13 @@ def main(
         config, max_windows
     )
     df_fh = evaluate_split(
-        sess, fh_windows, fh_targets, fh_gestures, "FreiHAND test", batch_size
+        sess,
+        fh_windows,
+        fh_targets,
+        fh_gestures,
+        "FreiHAND test",
+        batch_size,
+        ema_alpha,
     )
     df_fh.to_csv(out_dir / "freihand_test_results.csv", index=False)
 
@@ -930,6 +977,8 @@ def main(
                 cust_gestures,
                 "Custom gesture",
                 batch_size,
+                ema_alpha,
+                cust_sessions,
             )
             df_cust["session"] = cust_sessions[: len(df_cust)]
             df_cust.to_csv(out_dir / "custom_test_results.csv", index=False)
@@ -1022,6 +1071,16 @@ if __name__ == "__main__":
         help="Cap on windows per split (0 = all). Use for debugging.",
     )
     p.add_argument("--batch-size", type=int, default=256)
+    p.add_argument(
+        "--ema-alpha",
+        type=float,
+        default=0.8,
+        help=(
+            "EMA smoothing factor for predicted fingertip positions "
+            "(0 < alpha <= 1.0). 1.0 = no smoothing. "
+            "Default is 0.8 for a lower-lag smoothed output."
+        ),
+    )
     args = p.parse_args()
     main(
         model_path=args.model,
@@ -1030,4 +1089,5 @@ if __name__ == "__main__":
         skip_custom=args.skip_custom,
         max_windows=args.max_windows,
         batch_size=args.batch_size,
+        ema_alpha=args.ema_alpha,
     )

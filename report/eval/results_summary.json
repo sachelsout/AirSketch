@@ -1,0 +1,30 @@
+{
+  "model": "checkpoints\\best_model.optimized.onnx",
+  "targets": {
+    "mpjpe_px": 8.0,
+    "jitter_px2": 2.0,
+    "gesture_acc": 0.92
+  },
+  "freihand_test": {
+    "n_windows": 13590,
+    "mean_mpjpe": 30.262279510498047,
+    "p50_mpjpe": 31.111602783203125,
+    "p95_mpjpe": 57.979231643676755,
+    "jitter": 115.83893585205078,
+    "ges_acc": 1.0,
+    "pass_mpjpe": false,
+    "pass_jitter": false,
+    "pass_gesture": true
+  },
+  "custom_gesture": {
+    "n_windows": 28124,
+    "mean_mpjpe": 6.289950847625732,
+    "p50_mpjpe": 4.988874197006226,
+    "p95_mpjpe": 17.475458240509028,
+    "jitter": 53.6406192779541,
+    "ges_acc": 0.7968994453136111,
+    "pass_mpjpe": true,
+    "pass_jitter": false,
+    "pass_gesture": false
+  }
+}
