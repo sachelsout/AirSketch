@@ -64,3 +64,4 @@ logs/
 pc/
 
 checkpoints/*.onnx
+wandb_runs/

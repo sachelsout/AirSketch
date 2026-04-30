@@ -19,6 +19,7 @@ onnxruntime==1.18.0
 # Data & utilities
 numpy==1.26.4
 scipy==1.13.1
+scikit-learn==1.5.2
 Pillow==10.3.0
 tqdm==4.66.4
 
