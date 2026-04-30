@@ -1,0 +1,11 @@
+{
+  "total_frames": 18976,
+  "valid_frames": 15257,
+  "nan_frames": 3719,
+  "detection_rate": 0.804,
+  "draw_frames": 8087,
+  "idle_frames": 7170,
+  "draw_fraction": 0.5301,
+  "valid_ranges": 125,
+  "total_windows": 12492
+}
