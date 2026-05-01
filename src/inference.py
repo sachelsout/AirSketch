@@ -610,22 +610,25 @@ class InferenceLoop:
             gesture = 0
             gesture_conf = 0.5
 
-        # -- EMA smoothing ------------------------------------------------
-        if not np.any(np.isnan(pred_xy)):
+        # -- Use raw MediaPipe landmark for position (more stable) ------------
+        if detected and not np.any(np.isnan(landmarks)):
+            raw_fingertip = landmarks[INDEX_FINGERTIP].copy()
+        else:
+            raw_fingertip = np.array([0.5, 0.5], dtype=np.float32)
+
+        # -- EMA smoothing on raw landmark position ---------------------------
+        if not np.any(np.isnan(raw_fingertip)):
             if self._ema_xy is None:
-                self._ema_xy = pred_xy.copy()
+                self._ema_xy = raw_fingertip.copy()
             else:
                 self._ema_xy = (
-                    self._ema_alpha * pred_xy + (1 - self._ema_alpha) * self._ema_xy
+                    self._ema_alpha * raw_fingertip
+                    + (1 - self._ema_alpha) * self._ema_xy
                 )
             pred_xy = self._ema_xy.copy()
+        else:
+            pred_xy = raw_fingertip
 
-        # Guard against invalid model outputs to keep downstream rendering safe.
-        if not np.all(np.isfinite(pred_xy)):
-            if self._ema_xy is not None and np.all(np.isfinite(self._ema_xy)):
-                pred_xy = self._ema_xy.copy()
-            else:
-                pred_xy = np.array([0.5, 0.5], dtype=np.float32)
         pred_xy = np.clip(pred_xy, 0.0, 1.0).astype(np.float32)
 
         # -- Stage 5: Pose-driven draw-state gating ----------------------------
@@ -849,7 +852,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--ema-alpha",
         type=float,
-        default=0.05,
+        default=0.3,
         help="EMA smoothing factor. Lower = smoother.",
     )
     return p.parse_args()

@@ -169,6 +169,7 @@ def run_stream(
     device: str | None = None,
     show_preview: bool = True,
     log_path: str | Path | None = None,
+    mirror_virtual_cam: bool = False,
 ) -> None:
     """
     Run the full AirSketch stream: capture -> predict -> overlay -> virtual cam.
@@ -183,12 +184,18 @@ def run_stream(
         device:       Virtual camera device path (Linux only).
         show_preview: Open a local OpenCV preview window.
         log_path:     Optional CSV path for per-frame latency log.
+        mirror_virtual_cam: If True, send mirrored frames to virtual camera.
+                            If False (default), un-mirror for conferencing apps.
     """
     print("AirSketch -- starting stream")
     print(f"  OS:     {platform.system()} {platform.release()}")
     print(f"  Model:  {model_path}")
     print(f"  Camera: index={camera_index}  {width}x{height} @ {fps}fps")
     print(f"  Device: {device or 'auto'}")
+    print(
+        "  Virtual cam mirror: "
+        + ("ON (mirrored)" if mirror_virtual_cam else "OFF (un-mirrored)")
+    )
     print()
 
     # -- Build overlay ---------------------------------------------------------
@@ -253,7 +260,10 @@ def run_stream(
             now = time.perf_counter()
 
             if annotated["frame"] is not None:
-                vcam.send(annotated["frame"])
+                out_frame = annotated["frame"]
+                if not mirror_virtual_cam:
+                    out_frame = cv2.flip(out_frame, 1)
+                vcam.send(out_frame)
 
                 if show_preview:
                     cv2.imshow("AirSketch -- preview (Q to quit)", annotated["frame"])
@@ -325,6 +335,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--log-path", default=None, help="CSV path for per-frame latency log."
     )
+    p.add_argument(
+        "--mirror-virtual-cam",
+        action="store_true",
+        help=(
+            "Send mirrored frames to the virtual camera. "
+            "Default is un-mirrored output for Meet/Discord."
+        ),
+    )
     return p.parse_args()
 
 
@@ -341,4 +359,5 @@ if __name__ == "__main__":
         device=device,
         show_preview=args.preview,
         log_path=args.log_path,
+        mirror_virtual_cam=args.mirror_virtual_cam,
     )
